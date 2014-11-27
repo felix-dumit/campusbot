@@ -33,7 +33,7 @@ from Yowsup.Media.uploader import MediaUploader
 
 class Responder:
     
-    def __init__(self, queue, keepAlive = True, sendReceipts = True):
+    def __init__(self, queue, image_queue, keepAlive = True, sendReceipts = True):
         self.sendReceipts = sendReceipts
         
         connectionManager = YowsupConnectionManager()
@@ -57,13 +57,21 @@ class Responder:
         self.cm = connectionManager
 
         self.queue = queue
+        self.image_queue = image_queue
+
+        self.reply_dic = {}
+
+        self.running = True
     
     def login(self, username, password):
         self.username = username
         self.methodsInterface.call("auth_login", (username, password))
 
-    def sendMessage(self, jid, message):
-        self.methodsInterface.call("message_send", (jid, message))
+    def sendMessage(self, jid, message, replyMsg=None):
+        msgId = self.methodsInterface.call("message_send", (jid, message))
+
+        if replyMsg:
+            self.reply_dic[msgId] = replyMsg
 
     def sendImage(self, jid, url, name, size, preview="yes"):
         print("Sending message_image")
@@ -85,6 +93,8 @@ class Responder:
 
     def onDisconnected(self, reason):
         print("Disconnected because %s" %reason)
+        #exit(1)
+        self.running = False    
     def onError(self, msgId, jid, errorCode):
         print "ERRO:", msgId, jid, errorCode
 
@@ -92,21 +102,21 @@ class Responder:
         formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
         print("%s [%s]:%s"%(jid, formattedDate, messageContent))
 
-        self.queue.put([jid, messageContent])
+        self.queue.put([jid, messageContent, messageId])
 
         #if self.sendReceipts and wantsReceipt:
-        self.methodsInterface.call("message_ack", (jid, messageId))
+        #self.methodsInterface.call("message_ack", (jid, messageId))
 
     #new media functions
-    def onImageReceived(self, messageId, jid, preview, url, size, wantsReceipt, isBroadcast):
-        print("Image received: Id:%s Jid:%s Url:%s size:%s" %(messageId, jid, url, size))
+    def onImageReceived(self,msgId, jid, preview, url, size, caption, wantsReceipt, pushName, timestamp, isBroadcast):
+        print("Image received: Id:%s Jid:%s Url:%s size:%s caption:%s pushName:%s" %(msgId, jid, url, size, caption, pushName))
         
-        self.queue.put([jid, messageId, preview, url, size])
+        self.image_queue.put([jid, msgId, preview, url, size, caption, pushName])
         #downloader = MediaDownloader(self.onDlsuccess, self.onDlerror, self.onDlprogress)
         #downloader.download(url)
         
         #if self.sendReceipts and wantsReceipt:
-        self.methodsInterface.call("message_ack", (jid, messageId))
+        self.methodsInterface.call("message_ack", (jid, msgId))
 
         #timeout = 10
         #t = 0;
@@ -130,8 +140,17 @@ class Responder:
         stdout.write("\r Progress: %s" % progress)
         stdout.flush()
 
+
+
     def onMessageSent(self, jid, msgId):
         print "message sent to", jid, msgId
+
+        if msgId in self.reply_dic:
+            self.methodsInterface.call("message_ack", (jid, self.reply_dic[msgId]))
+            del self.reply_dic[msgId]
+
+
     def onMessageDelivered(self, jid, msgId):
         print "message delivered to", jid, msgId
+
     

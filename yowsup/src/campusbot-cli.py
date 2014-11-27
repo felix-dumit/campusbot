@@ -112,7 +112,7 @@ class ThreadedCampusBot():
         self.incoming_image_queue = Queue()
         self.outgoing_image_queue = Queue()
 
-        self.wa = Responder(self.incoming_queue, True, True)
+        self.wa = Responder(self.incoming_queue, self.incoming_image_queue, True, True)
         self.wa.login(login, password)
 
         t = threading.Thread(target=self.listen_worker)
@@ -123,13 +123,13 @@ class ThreadedCampusBot():
         t.setDaemon(True)
         t.start()
 
-        #t = threading.Thread(target=self.listen_image_worker)
-        #t.setDaemon(True)
-        #t.start()
+        t = threading.Thread(target=self.listen_image_worker)
+        t.setDaemon(True)
+        t.start()
 
-        #t = threading.Thread(target=self.send_image_worker)
-        #t.setDaemon(True)
-        #t.start()
+        t = threading.Thread(target=self.send_image_worker)
+        t.setDaemon(True)
+        t.start()
 
         #self.wa.sendMessage("5519987059806@s.whatsapp.net", "mensage")
         # self.wa.sendImage("5519987059806@s.whatsapp.net", 'https://mmi202.whatsapp.net/d/CL_rmBHbf2zN7eveJAybclR3NxQABQjYFCz-IA/As27Ab_T5VQdV3q5ORfNadEbC5n8w9SB9uSZZs811e_u.jpg', 'image.jpg', '145800',
@@ -137,43 +137,48 @@ class ThreadedCampusBot():
         # self.wa.sendMessage("5519987059806@s.whatsapp.net", "mensagem 2")
 
         #self.wa.sendLocation("5519987059806@s.whatsapp.net", "nome", '-22.8233998', '-47.0748121')
-        while True:
-            raw_input()
+        while self.wa.running:
+            pass
+        exit(1)
+            
 
     def listen_worker(self):
         while True:
-            jid, message = self.incoming_queue.get()            
-            self.outgoing_queue.put([jid, message])
+            jid, message, msgId = self.incoming_queue.get()            
+            self.outgoing_queue.put([jid, message, msgId])
             self.incoming_queue.task_done()
 
     def send_worker(self):
         while True:
-            jid, message, = self.outgoing_queue.get()
-            self.wa.sendMessage(jid, message)
+            jid, message, msgId = self.outgoing_queue.get()
+            self.wa.sendMessage(jid, message,replyMsg=msgId)
             self.outgoing_queue.task_done()
 
     def listen_image_worker(self):
         while True:
-            jid, messageId, preview, url, size = self.incoming_queue.get()
+            #x = self.incoming_image_queue.get()
 
-            api_key = 'acc_0d66d90a391c7ab'
-            values = "{\"urls\": \"%s\" }" % (url)
-            request = requests.post("http://api.imagga.com/draft/classify/imagga_personal_photos_v2?api_key=%s" % api_key, data=values)
-            res = request.json()
-            print res
-            request2 = requests.get("http://api.imagga.com/draft/classify/result/%s?api_key=%s" % (res['ticket_id'], api_key))
-            print request2.text
+            # api_key = 'acc_0d66d90a391c7ab'
+            # values = "{\"urls\": \"%s\" }" % (url)
+            # request = requests.post("http://api.imagga.com/draft/classify/imagga_personal_photos_v2?api_key=%s" % api_key, data=values)
+            # res = request.json()
+            # print res
+            # request2 = requests.get("http://api.imagga.com/draft/classify/result/%s?api_key=%s" % (res['ticket_id'], api_key))
+            # print request2.text
+
+            jid, msgId, preview, url, size, caption, pushName = self.incoming_image_queue.get()
             
+            self.wa.sendImage(jid, url, "image.jpg", size, preview)
             #self.outgoing_queue.put(x)
-            self.incoming_queue.task_done()
+            self.incoming_image_queue.task_done()
 
     def send_image_worker(self):
         while True:
-            jid, messageId, preview, url, size = self.outgoing_queue.get()
+            jid, messageId, preview, url, size = self.outgoing_image_queue.get()
             #print "aqui", jid, message
             self.wa.sendMessage(jid, "to te mandando imagem")
             #self.wa.sendImage(jid, url, "nome.jpg", size, preview)
-            self.outgoing_queue.task_done()
+            self.outgoing_image_queue.task_done()
 
 
 if __name__ == "__main__":
