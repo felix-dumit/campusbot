@@ -108,15 +108,17 @@ class Responder:
         #self.methodsInterface.call("message_ack", (jid, messageId))
 
     #new media functions
-    def onImageReceived(self,msgId, jid, preview, url, size, caption, wantsReceipt, pushName, timestamp, isBroadcast):
-        print("Image received: Id:%s Jid:%s Url:%s size:%s caption:%s pushName:%s" %(msgId, jid, url, size, caption, pushName))
+    #def onImageReceived(self,msgId, jid, preview, url, size, caption, wantsReceipt, pushName, timestamp, isBroadcast):
+    def onImageReceived(self, msgId, jid, preview, url, size, wantsReceipt, isBroadcast):
+
+        print("Image received: Id:%s Jid:%s Url:%s size:%s caption:%s pushName:%s" %(msgId, jid, url, size, "", ""))
         
-        self.image_queue.put([jid, msgId, preview, url, size, caption, pushName])
+        self.image_queue.put([jid, msgId, preview, url, size, "", ""])
         #downloader = MediaDownloader(self.onDlsuccess, self.onDlerror, self.onDlprogress)
         #downloader.download(url)
         
         #if self.sendReceipts and wantsReceipt:
-        self.methodsInterface.call("message_ack", (jid, msgId))
+        #self.methodsInterface.call("message_ack", (jid, msgId))
 
         #timeout = 10
         #t = 0;

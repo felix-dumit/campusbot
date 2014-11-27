@@ -32,8 +32,7 @@ from Yowsup.Common.debugger import Debugger
 from Yowsup.Common.constants import Constants
 from Examples.Responder import Responder
 from Queue import Queue
-import requests
-
+from ImageRecognizer import ImageRecognizer
 
 import threading,time, base64
 
@@ -115,6 +114,8 @@ class ThreadedCampusBot():
         self.wa = Responder(self.incoming_queue, self.incoming_image_queue, True, True)
         self.wa.login(login, password)
 
+        self.ir = ImageRecognizer()
+
         t = threading.Thread(target=self.listen_worker)
         t.setDaemon(True)
         t.start()
@@ -156,19 +157,13 @@ class ThreadedCampusBot():
 
     def listen_image_worker(self):
         while True:
-            #x = self.incoming_image_queue.get()
-
-            # api_key = 'acc_0d66d90a391c7ab'
-            # values = "{\"urls\": \"%s\" }" % (url)
-            # request = requests.post("http://api.imagga.com/draft/classify/imagga_personal_photos_v2?api_key=%s" % api_key, data=values)
-            # res = request.json()
-            # print res
-            # request2 = requests.get("http://api.imagga.com/draft/classify/result/%s?api_key=%s" % (res['ticket_id'], api_key))
-            # print request2.text
 
             jid, msgId, preview, url, size, caption, pushName = self.incoming_image_queue.get()
             
-            self.wa.sendImage(jid, url, "image.jpg", size, preview)
+            response = self.ir.recognizeImage(url)
+            print response
+            self.wa.sendMessage(jid, response, replyMsg=msgId)
+            #self.wa.sendImage(jid, url, "image.jpg", size, preview)
             #self.outgoing_queue.put(x)
             self.incoming_image_queue.task_done()
 
