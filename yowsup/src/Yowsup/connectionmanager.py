@@ -27,7 +27,7 @@ from Yowsup.Common.utilities import Utilities
 from Yowsup.Common.debugger import Debugger
 import threading, select, time
 from Yowsup.Common.watime import WATime
-from .Auth.auth import YowsupAuth
+from Yowsup.Auth.auth import YowsupAuth
 from Yowsup.Common.constants import Constants
 from Yowsup.Interfaces.Lib.LibInterface import LibMethodInterface, LibSignalInterface
 import tempfile
@@ -333,7 +333,6 @@ class YowsupConnectionManager:
 		  attr["type"] = "read"
 		receiptNode = ProtocolTreeNode("receipt", attr)
 		self._writeNode(receiptNode)
-
 
 
 	def sendDeliveredReceiptAck(self,to,msg_id):
@@ -886,8 +885,8 @@ class ReaderThread(threading.Thread):
 			self.disconnectedSent = True
 			if self.disconnectedCallback:
 				self.disconnectedCallback()
-			self.lock.release()
-			self.signalInterface.send("disconnected", (reason,))
+		self.lock.release()
+		self.signalInterface.send("disconnected", (reason,))
 
 	def run(self):
 		self._d("Read thread startedX");
@@ -973,7 +972,7 @@ class ReaderThread(threading.Thread):
 						if dirtyNode is not None:
 							dirtyType = dirtyNode.getAttributeValue("type")
 							self.signalInterface.send("ib_dirty", (dirtyType,))
-							##sendCleanDirty(dirtyType)
+                            ##sendCleanDirty(dirtyType)
 
 					elif ProtocolTreeNode.tagEquals(node,"presence"):
 						jid = node.getAttributeValue("from")
@@ -1008,7 +1007,7 @@ class ReaderThread(threading.Thread):
 									self.signalInterface.send("notification_contactProfilePictureUpdated",(bodyNode.getAttributeValue("jid"), timestamp, msgId, pictureId, receiptRequested))
 
 							else:
-								bodyNode = notifNode.getChild("delete")
+								bodyNode = node.getChild("delete")
 
 								if bodyNode:
 									if "-" in bodyNode.getAttributeValue("jid"):
@@ -1017,10 +1016,10 @@ class ReaderThread(threading.Thread):
 										self.signalInterface.send("notification_contactProfilePictureRemoved",(bodyNode.getAttributeValue("jid"), timestamp, msgId, receiptRequested))
 
 							#if isGroup:
-							#   
-							#   self.signalInterface.send("notification_groupPictureUpdated",(bodyNode.getAttributeValue("jid"), bodyNode.getAttributeValue("author"), timestamp, msgId, receiptRequested))
+							#	
+							#	self.signalInterface.send("notification_groupPictureUpdated",(bodyNode.getAttributeValue("jid"), bodyNode.getAttributeValue("author"), timestamp, msgId, receiptRequested))
 							#else:
-							#   self.signalInterface.send("notification_contactProfilePictureUpdated",(bodyNode.getAttributeValue("jid"), timestamp, msgId, receiptRequested))
+							#	self.signalInterface.send("notification_contactProfilePictureUpdated",(bodyNode.getAttributeValue("jid"), timestamp, msgId, receiptRequested))
 
 							#self.sendNotificationReceived(notificationTo, notificationId, fromJid, participant, notificationType, None)
 
@@ -1085,13 +1084,17 @@ class ReaderThread(threading.Thread):
 						receiptType = node.getAttributeValue("type");
 						fromJid = node.getAttributeValue("from");
 						msg_id = node.getAttributeValue("id")
-						participant = node.getAttributeValue("participant")
-						if receiptType == "delivered" or receiptType == "played" or receiptType != "":
-							self.sendReceiptAck(msg_id, receiptType)
 						if fromJid[-9:] == "broadcast":
-							self.signalInterface.send("receipt_messageDelivered", (participant, msg_id))
-						else:
+							fromJid = node.getAttributeValue("participant")
+						self.sendReceiptAck(msg_id, receiptType)
+						if receiptType != "delivered" and receiptType != "played":
 							self.signalInterface.send("receipt_messageDelivered", (fromJid, msg_id))
+							groupNode = node.getChild("list")
+							if groupNode:
+								items = groupNode.getAllChildren("item");
+								for i in items:
+									msg_id = i.getAttributeValue("id")
+									self.signalInterface.send("receipt_messageDelivered", (fromJid, msg_id))
 
 					elif ProtocolTreeNode.tagEquals(node, "ack"):
 						ackClass = node.getAttributeValue("class")
@@ -1159,6 +1162,7 @@ class ReaderThread(threading.Thread):
 
 	def parseGroups(self,node):
 		children = node.getAllChildren("group");
+		groups = []
 		for groupNode in children:
 			jid = groupNode.getAttributeValue("id") + "@g.us"
 			owner = groupNode.getAttributeValue("owner")
@@ -1168,6 +1172,9 @@ class ReaderThread(threading.Thread):
 			creation = groupNode.getAttributeValue("creation")
 
 			self.signalInterface.send("group_gotInfo",(jid, owner, subject, subjectOwner, int(subjectT),int(creation)))
+			groups.append((jid, owner, subject, subjectOwner, int(subjectT),int(creation)))
+
+		self.signalInterface.send("group_gotGroups", (groups,))
 
 
 	def parseGroupInfo(self,node):
@@ -1302,14 +1309,14 @@ class ReaderThread(threading.Thread):
 	def parseGetPictureIds(self,node):
 		jid = node.getAttributeValue("from");
 		groupNode = node.getChild("list")
-		#self._d(groupNode.toString())
+		self._d(groupNode.toString())
 		children = groupNode.getAllChildren("user");
-		#pids = []
+		pids = []
 		for c in children:
 			if c.getAttributeValue("id") is not None:
-				#pids.append({"jid":c.getAttributeValue("jid"),"id":c.getAttributeValue("id")})
+				pids.append({"jid":c.getAttributeValue("jid"),"id":c.getAttributeValue("id")})
 				self.signalInterface.send("contact_gotProfilePictureId", (c.getAttributeValue("jid"), c.getAttributeValue("id")))
-		#self.signalInterface.send("contact_gotProfilePictureIds", (pids,))
+		self.signalInterface.send("contact_gotProfilePictureIds", (pids,))
 
 
 	def parseSetPicture(self,node):
@@ -1457,11 +1464,10 @@ class ReaderThread(threading.Thread):
 		except:
 			pass
 
-		pushName = messageNode.getAttributeValue("notify")
-		if pushName is None:
-			notifNode = messageNode.getChild("notify")
-			if notifNode is not None:
-				pushName = notifNode.getAttributeValue("name");
+		pushName = None
+		notifNode = messageNode.getChild("notify")
+		if notifNode is not None:
+			pushName = notifNode.getAttributeValue("name");
 
 
 		msgId = messageNode.getAttributeValue("id");
@@ -1503,9 +1509,9 @@ class ReaderThread(threading.Thread):
 							mediaPreview = base64.b64encode(mediaPreview) if sys.version_info < (3, 0) else base64.b64encode(mediaPreview.encode('latin-1')).decode()
 
 						if isGroup:
-							self.signalInterface.send("group_imageReceived", (msgId, fromAttribute, author, mediaPreview, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName))
+							self.signalInterface.send("group_imageReceived", (msgId, fromAttribute, author, mediaPreview, mediaUrl, mediaSize, wantsReceipt))
 						else:
-							self.signalInterface.send("image_received", (msgId, fromAttribute, mediaPreview, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName, isBroadcast))
+							self.signalInterface.send("image_received", (msgId, fromAttribute, mediaPreview, mediaUrl, mediaSize,  wantsReceipt, isBroadcast))
 
 					elif mediaType == "video":
 						mediaPreview = messageNode.getChild("media").data
@@ -1514,17 +1520,17 @@ class ReaderThread(threading.Thread):
 							mediaPreview = base64.b64encode(mediaPreview) if sys.version_info < (3, 0) else base64.b64encode(mediaPreview.encode('latin-1')).decode()
 
 						if isGroup:
-							self.signalInterface.send("group_videoReceived", (msgId, fromAttribute, author, mediaPreview, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName))
+							self.signalInterface.send("group_videoReceived", (msgId, fromAttribute, author, mediaPreview, mediaUrl, mediaSize, wantsReceipt))
 						else:
-							self.signalInterface.send("video_received", (msgId, fromAttribute, mediaPreview, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName, isBroadcast))
+							self.signalInterface.send("video_received", (msgId, fromAttribute, mediaPreview, mediaUrl, mediaSize, wantsReceipt, isBroadcast))
 
 					elif mediaType == "audio":
 						mediaPreview = messageNode.getChild("media").data
 
 						if isGroup:
-							self.signalInterface.send("group_audioReceived", (msgId, fromAttribute, author, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName))
+							self.signalInterface.send("group_audioReceived", (msgId, fromAttribute, author, mediaUrl, mediaSize, wantsReceipt))
 						else:
-							self.signalInterface.send("audio_received", (msgId, fromAttribute, mediaUrl, mediaSize, timestamp, wantsReceipt, pushName, isBroadcast))
+							self.signalInterface.send("audio_received", (msgId, fromAttribute, mediaUrl, mediaSize, wantsReceipt, isBroadcast))
 
 					elif mediaType == "location":
 						mlatitude = messageNode.getChild("media").getAttributeValue("latitude")
@@ -1540,9 +1546,9 @@ class ReaderThread(threading.Thread):
 							mediaPreview = base64.b64encode(mediaPreview) if sys.version_info < (3, 0) else base64.b64encode(mediaPreview.encode('latin-1')).decode()
 
 						if isGroup:
-							self.signalInterface.send("group_locationReceived", (msgId, fromAttribute, author, name or "", mediaPreview, mlatitude, mlongitude, timestamp, wantsReceipt, pushName))
+							self.signalInterface.send("group_locationReceived", (msgId, fromAttribute, author, name or "", mediaPreview, mlatitude, mlongitude, wantsReceipt))
 						else:
-							self.signalInterface.send("location_received", (msgId, fromAttribute, name or "", mediaPreview, mlatitude, mlongitude, timestamp, wantsReceipt, pushName, isBroadcast))
+							self.signalInterface.send("location_received", (msgId, fromAttribute, name or "", mediaPreview, mlatitude, mlongitude, wantsReceipt, isBroadcast))
 		
 					elif mediaType =="vcard":
 						#return
@@ -1559,9 +1565,9 @@ class ReaderThread(threading.Thread):
 							vcardData = vcardData.replace("</vcard>","")
 
 							if isGroup:
-								self.signalInterface.send("group_vcardReceived", (msgId, fromAttribute, author, vcardName, vcardData, timestamp, wantsReceipt, pushName))
+								self.signalInterface.send("group_vcardReceived", (msgId, fromAttribute, author, vcardName, vcardData, wantsReceipt))
 							else:
-								self.signalInterface.send("vcard_received", (msgId, fromAttribute, vcardName, vcardData, timestamp, wantsReceipt, pushName, isBroadcast))
+								self.signalInterface.send("vcard_received", (msgId, fromAttribute, vcardName, vcardData, wantsReceipt, isBroadcast))
 							
 					else:
 						self._d("Unknown media type")
@@ -1644,8 +1650,8 @@ class ReaderThread(threading.Thread):
 						self.connection.sendGetGroupInfo(fromAttribute)
 				'''
 					#if not len(conversation.getContacts()):
-					#   self._d("GETTING GROUP CONTACTS")
-					#   self.connection.sendGetParticipants(fromAttribute)
+					#	self._d("GETTING GROUP CONTACTS")
+					#	self.connection.sendGetParticipants(fromAttribute)
 
 				'''@@TODO FROM CLIENT
 				if ret is None:

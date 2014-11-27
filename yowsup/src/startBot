@@ -1,0 +1,6 @@
+#!/bin/bash
+clear;
+until python campusbot-cli.py; do
+    echo Server myserver crashed with exit code 2. Respawning.. >&2
+    sleep 1
+done
