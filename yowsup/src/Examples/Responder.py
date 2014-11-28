@@ -30,10 +30,11 @@ if sys.version_info >= (3, 0):
 from Yowsup.connectionmanager import YowsupConnectionManager
 from Yowsup.Media.downloader import MediaDownloader
 from Yowsup.Media.uploader import MediaUploader
+from Queue import Queue
 
 class Responder:
     
-    def __init__(self, queue, image_queue, keepAlive = True, sendReceipts = True):
+    def __init__(self, keepAlive = True, sendReceipts = True):
         self.sendReceipts = sendReceipts
         
         connectionManager = YowsupConnectionManager()
@@ -50,14 +51,15 @@ class Responder:
 
         self.signalsInterface.registerListener("receipt_messageSent", self.onMessageSent)
         self.signalsInterface.registerListener("receipt_messageDelivered", self.onMessageDelivered)
+        
         self.signalsInterface.registerListener("image_received", self.onImageReceived)
 
 
         
         self.cm = connectionManager
 
-        self.queue = queue
-        self.image_queue = image_queue
+        self.message_queue = Queue()
+        self.image_queue = Queue()
 
         self.reply_dic = {}
 
@@ -102,16 +104,16 @@ class Responder:
         formattedDate = datetime.datetime.fromtimestamp(timestamp).strftime('%d-%m-%Y %H:%M')
         print("%s [%s]:%s"%(jid, formattedDate, messageContent))
 
-        self.queue.put([jid, messageContent, messageId])
+        self.message_queue.put([jid, messageContent, messageId])
 
         #if self.sendReceipts and wantsReceipt:
         #self.methodsInterface.call("message_ack", (jid, messageId))
 
     #new media functions
-    #def onImageReceived(self,msgId, jid, preview, url, size, caption, wantsReceipt, pushName, timestamp, isBroadcast):
-    def onImageReceived(self, msgId, jid, preview, url, size, wantsReceipt, isBroadcast):
+    def onImageReceived(self,msgId, jid, preview, url, size, caption, wantsReceipt, pushName, timestamp, isBroadcast):
+    #def onImageReceived(self, msgId, jid, preview, url, size, wantsReceipt, isBroadcast):
 
-        print("Image received: Id:%s Jid:%s Url:%s size:%s caption:%s pushName:%s" %(msgId, jid, url, size, "", ""))
+        print("Image received: Id:%s Jid:%s Url:%s size:%s caption:%s pushName:%s" %(msgId, jid, url, size, caption, pushName))
         
         self.image_queue.put([jid, msgId, preview, url, size, "", ""])
         #downloader = MediaDownloader(self.onDlsuccess, self.onDlerror, self.onDlprogress)
@@ -120,23 +122,17 @@ class Responder:
         #if self.sendReceipts and wantsReceipt:
         #self.methodsInterface.call("message_ack", (jid, msgId))
 
-        #timeout = 10
-        #t = 0;
-        #while t < timeout:
-        #    time.sleep(0.5)
-        #    t+=1
-
     def onDlsuccess(self, path):
         stdout.write("\n")
         stdout.flush()
         print("Image downloded to %s"%path)
-        print(self.getPrompt())
+        #print(self.getPrompt())
 
     def onDlerror(self):
         stdout.write("\n")
         stdout.flush()
         print("Download Error")
-        print(self.getPrompt())
+        #print(self.getPrompt())
 
     def onDlprogress(self, progress):
         stdout.write("\r Progress: %s" % progress)

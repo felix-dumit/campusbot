@@ -106,29 +106,20 @@ class ThreadedCampusBot():
         countryCode, phoneNumber = dissected
         Debugger.enabled = False
 
-        self.incoming_queue = Queue()
-        self.outgoing_queue = Queue()        
-        self.incoming_image_queue = Queue()
-        self.outgoing_image_queue = Queue()
+        self.message_queue = Queue()
+        self.image_queue = Queue()
 
-        self.wa = Responder(self.incoming_queue, self.incoming_image_queue, True, True)
+        self.wa = Responder(True, True)
         self.wa.login(login, password)
 
         self.ir = ImageRecognizer()
 
-        t = threading.Thread(target=self.listen_worker)
+
+        t = threading.Thread(target=self.message_worker)
         t.setDaemon(True)
         t.start()
 
-        t = threading.Thread(target=self.send_worker)
-        t.setDaemon(True)
-        t.start()
-
-        t = threading.Thread(target=self.listen_image_worker)
-        t.setDaemon(True)
-        t.start()
-
-        t = threading.Thread(target=self.send_image_worker)
+        t = threading.Thread(target=self.image_worker)
         t.setDaemon(True)
         t.start()
 
@@ -143,37 +134,22 @@ class ThreadedCampusBot():
         exit(1)
             
 
-    def listen_worker(self):
-        while True:
-            jid, message, msgId = self.incoming_queue.get()            
-            self.outgoing_queue.put([jid, message, msgId])
-            self.incoming_queue.task_done()
 
-    def send_worker(self):
+    def message_worker(self):
         while True:
-            jid, message, msgId = self.outgoing_queue.get()
+            jid, message, msgId = self.wa.message_queue.get()
             self.wa.sendMessage(jid, message,replyMsg=msgId)
-            self.outgoing_queue.task_done()
+            self.wa.message_queue.task_done()
 
-    def listen_image_worker(self):
+    def image_worker(self):
         while True:
-
-            jid, msgId, preview, url, size, caption, pushName = self.incoming_image_queue.get()
+            jid, msgId, preview, url, size, caption, pushName = self.wa.image_queue.get()
             
-            response = self.ir.recognizeImage(url)
-            print response
+            response = 'Tags:' + ', '.join(self.ir.tagsForImage(url))
             self.wa.sendMessage(jid, response, replyMsg=msgId)
             #self.wa.sendImage(jid, url, "image.jpg", size, preview)
-            #self.outgoing_queue.put(x)
-            self.incoming_image_queue.task_done()
+            self.wa.image_queue.task_done()
 
-    def send_image_worker(self):
-        while True:
-            jid, messageId, preview, url, size = self.outgoing_image_queue.get()
-            #print "aqui", jid, message
-            self.wa.sendMessage(jid, "to te mandando imagem")
-            #self.wa.sendImage(jid, url, "nome.jpg", size, preview)
-            self.outgoing_image_queue.task_done()
 
 
 if __name__ == "__main__":
