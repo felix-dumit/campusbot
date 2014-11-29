@@ -27,7 +27,7 @@ class ImageDownloadableMediaMessageProtocolEntity(DownloadableMediaMessageProtoc
             _id = None, _from = None, to = None, notify = None, timestamp = None, participant = None,
             preview = None, offline = None, retry = None):
 
-        super(MediaMessageProtocolEntity, self).__init__(mediaType, 
+        super(DownloadableMediaMessageProtocolEntity, self).__init__(mediaType, 
             _id, _from, to, notify, timestamp, participant, preview, offline, retry)
         self.setImageProps(encoding, width, height)
         self.setDownloadableMediaProps(mimeType, fileHash, url, ip, size, fileName)
