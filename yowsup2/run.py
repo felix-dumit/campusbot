@@ -10,7 +10,16 @@ from yowsup.stacks import YowStack
 from yowsup.common import YowConstants
 from yowsup.layers import YowLayerEvent
 from yowsup.stacks import YowStack, YOWSUP_CORE_LAYERS
+import settings_local
 
+from parse_rest.connection import register
+
+
+register(
+    getattr(settings_local, 'APPLICATION_ID'),
+    getattr(settings_local, 'REST_API_KEY'),
+    master_key=getattr(settings_local, 'MASTER_KEY')
+)
 
 CREDENTIALS = ("5519987253448", "DWG1z2EldxHj0vxjYOaCQlKtl/8=") # replace with your phone and password
 

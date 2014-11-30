@@ -5,8 +5,15 @@ from yowsup.layers.protocol_receipts.protocolentities  import OutgoingReceiptPro
 from yowsup.layers.protocol_acks.protocolentities      import OutgoingAckProtocolEntity
 from ImageRecognizer import ImageRecognizer
 
+from parse_rest.datatypes import Object
+
+
 receipt_dic = {}
 ir = ImageRecognizer()
+
+class Image(Object):
+    pass
+
 
 
 class EchoLayer(YowInterfaceLayer):
@@ -66,16 +73,18 @@ class EchoLayer(YowInterfaceLayer):
         #     messageProtocolEntity.size, messageProtocolEntity.fileName, messageProtocolEntity.encoding, messageProtocolEntity.width, messageProtocolEntity.height,
         #     to=messageProtocolEntity.getFrom())
         
-        response = ', '.join(ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3))
+        categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
 
-        print response
 
         outgoingMessageProtocolEntity = TextMessageProtocolEntity(
-            response, to = messageProtocolEntity.getFrom())
+            ', '.join(categories), to = messageProtocolEntity.getFrom())
 
         receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
 
         self.toLower(outgoingMessageProtocolEntity)
+
+        image = Image(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(), categories=categories)
+        image.save()
 
 
 
