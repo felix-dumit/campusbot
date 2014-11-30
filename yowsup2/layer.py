@@ -68,7 +68,7 @@ class EchoLayer(YowInterfaceLayer):
 
         receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom())
 
-        # outgoingMessageProtocolEntity = ImageDownloadableMediaMessageProtocolEntity(messageProtocolEntity.getMediaType(),
+        # outImage = ImageDownloadableMediaMessageProtocolEntity(messageProtocolEntity.getMediaType(),
         #     messageProtocolEntity.getMimeType(), messageProtocolEntity.fileHash, messageProtocolEntity.url, messageProtocolEntity.ip,
         #     messageProtocolEntity.size, messageProtocolEntity.fileName, messageProtocolEntity.encoding, messageProtocolEntity.width, messageProtocolEntity.height,
         #     to=messageProtocolEntity.getFrom())
@@ -80,8 +80,10 @@ class EchoLayer(YowInterfaceLayer):
             ', '.join(categories), to = messageProtocolEntity.getFrom())
 
         receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
+        #receipt_dic[outImage.getId()] = receipt
 
         self.toLower(outgoingMessageProtocolEntity)
+        #self.toLower(outImage)
 
         image = Image(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(), categories=categories)
         image.save()
