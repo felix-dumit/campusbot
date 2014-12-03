@@ -21,17 +21,27 @@ Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
 
 
 Parse.Cloud.define("getSubscribersForCategory", function(request, response) {
+
     Parse.Cloud.useMasterKey();
+
     var category = request.params.category;
     console.log('category:' + category);
+
     var query = new Parse.Query(Category);
+    query.equalTo('code', category);
     query.include('subscribers');
     query.first().then(function(cat) {
-        response.success(cat.get('subscribers'));
+        if (!cat) {
+            response.success([]);
+        } else {
+            console.log('subscribers:' + cat.get('subscribers').length);
+            response.success([cat.get('subscribers'), cat.get('shortName')]);
+        }
     }, function(error) {
         response.error(error);
     });
 });
+
 
 var categoryForCodes = function(codes) {
     var promises = [];
@@ -39,11 +49,13 @@ var categoryForCodes = function(codes) {
     _.each(codes, function(code) {
         var query = new Parse.Query(Category);
         query.equalTo('code', code);
+        query.include('subscribers');
         promises.push(query.first().then(function(cat) {
             if (cat) {
                 cats.push(cat);
             } else {
                 cat = new Category();
+                cat.set('subscribers', []);
                 cat.set('code', code);
                 cat.set('name', 'Outras');
                 cat.save().then(function(savedCat) {
@@ -68,10 +80,7 @@ var userForJID = function(jid) {
     var query = new Parse.Query(Parse.User);
     query.equalTo('username', jid);
     query.first().then(function(user) {
-        console.log("AQUI USER FOR JID QUERY");
-
         if (user) {
-            console.log("JA TEM O USER ANTIGO");
             promise.resolve(user);
             return;
         }
@@ -97,12 +106,13 @@ var userForJID = function(jid) {
     return promise;
 }
 
-
 Parse.Cloud.define("saveNewImage", function(request, response) {
     Parse.Cloud.useMasterKey();
 
     var query = new Parse.Query(Image);
     query.equalTo('url', request.params.url);
+
+    var countQuery = new Parse.Query(Image);
 
     query.first().then(function(image) {
         return image || new Image();
@@ -113,10 +123,15 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
         image.set('jid', request.params.jid);
 
         newImage = image;
-        return Parse.Promise.when(image, userForJID(request.params.jid), categoryForCodes(request.params.categories));
-    }).then(function(image, user, categories) {
+        return Parse.Promise.when(image,
+            userForJID(request.params.jid),
+            categoryForCodes(request.params.categories),
+            countQuery.count()
+        );
+    }).then(function(image, user, categories, count) {
         image.set('user', user);
         image.set('categories', categories);
+        image.set('code', ('00000' + count).substr(-5));
         return image.save();
     }).then(function(image) {
         response.success(image);
@@ -125,3 +140,64 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
     });
 
 });
+
+
+
+Parse.Cloud.define("userSubscribeToCategory", function(request, response) {
+    var shortName = request.params.category;
+    var jid = request.params.jid;
+
+    var query = new Parse.Query(Category);
+    query.equalTo('shortName', shortName);
+
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(category, user) {
+        category.addUnique('subscribers', user);
+        return category.save()
+    }).then(function(savedCategory) {
+        response.success([true, shortName]);
+    }, function(error) {
+        response.success([false, shortName]);
+    });
+
+});
+
+Parse.Cloud.define("userUnSubscribeToCategory", function(request, response) {
+    var shortName = request.params.category;
+    var jid = request.params.jid;
+
+    var query = new Parse.Query(Category);
+    query.equalTo('shortName', shortName);
+
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(category, user) {
+        category.remove('subscribers', user);
+        return category.save()
+    }).then(function(savedCategory) {
+        response.success([true, shortName]);
+    }, function(error) {
+        response.success([false, shortName]);
+    });
+
+});
+
+
+Parse.Cloud.define("userLikeImage", function(request, response){
+	var jid = request.params.jid;
+	var imageCode = request.params.imageCode;
+
+	var query = new Parse.Query(Image);
+	query.equalTo('code', imageCode);
+
+	Parse.Promise.when(query.first(), userForJID(jid)).then(function(image, user){
+		if(!image){
+			response.success(-1);
+			return;
+		}
+		image.addUnique('likers', user);
+		return image.save();
+	}).then(function(image){
+		response.success(image.get('likers').length);
+	}, function(error){
+		response.error(error);
+	});
+});
+

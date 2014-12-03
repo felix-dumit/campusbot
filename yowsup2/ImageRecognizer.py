@@ -21,3 +21,10 @@ if __name__ == "__main__":
     ir = ImageRecognizer()
     #print ir.recognizeImage('http://playground.imagga.com/static/img/example_photo.jpg',2)    
     print ir.tagsForImage('https://mmi203.whatsapp.net/d/D02ndanMkJDJLNxvEVbmgFR3mPQABQjd6aO8-g/AtYY_3iXKeEBeutTGOsk6YyXi7JfEdYh8f3SxqnK7qqF.jpg', 30)
+
+
+
+    ["text_visuals", "macro_flowers", "cars_vehicles", "people_portraits", 
+"food_drinks", "pets_animals", "interior_objects", "events_parties", 
+"streetview_architecture", "sunrises_sunsets", "nature_landscape", "paintings_art", 
+"beaches_seaside"]

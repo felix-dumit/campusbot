@@ -11,6 +11,9 @@ from parse_rest.datatypes import Function
 
 getSubscribersForCategory = Function("getSubscribersForCategory")
 saveNewImage = Function("saveNewImage")
+userSubscribeToCategory = Function("userSubscribeToCategory")
+userUnSubscribeToCategory = Function("userUnSubscribeToCategory")
+userLikeImage = Function("userLikeImage")
 
 receipt_dic = {}
 ir = ImageRecognizer()
@@ -45,9 +48,7 @@ class EchoLayer(YowInterfaceLayer):
 
         receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
-        outgoingMessageProtocolEntity = TextMessageProtocolEntity(
-            messageProtocolEntity.getBody(),
-            to = messageProtocolEntity.getFrom())
+        outgoingMessageProtocolEntity = self.getResponseForTextMessage(messageProtocolEntity)
 
         receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
 
@@ -65,10 +66,9 @@ class EchoLayer(YowInterfaceLayer):
         if messageProtocolEntity.getMediaType() == "image":
             receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
-
             categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
 
-            outgoingMessageProtocolEntity = TextMessageProtocolEntity(
+            outgoingMessageProtocolEntity =  TextMessageProtocolEntity(
                 'Sua mensagem foi recebida como: %s' % categories[0], to = messageProtocolEntity.getFrom())
 
             receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
@@ -88,8 +88,10 @@ class EchoLayer(YowInterfaceLayer):
 
     def sendImageToSubscribers(self, messageProtocolEntity, category):           
         debug_jids = ["5519987059806@s.whatsapp.net"]
-        subscribers = [x for x  in getSubscribersForCategory(category=category)['result'] if x!= messageProtocolEntity.getFrom() or x in debug_jids]
-        print subscribers
+        subscribers, shortName = getSubscribersForCategory(category=category)['result']
+        print 'subscribers parse', subscribers
+        subscribers = [x['username'] for x  in subscribers if x!= messageProtocolEntity.getFrom() or x in debug_jids]
+        print 'subscribers',subscribers
 
         caption = messageProtocolEntity.getCaption() if messageProtocolEntity.getCaption() else ''
 
@@ -97,12 +99,53 @@ class EchoLayer(YowInterfaceLayer):
             outImage = ImageDownloadableMediaMessageProtocolEntity(
                 messageProtocolEntity.getMimeType(), messageProtocolEntity.fileHash, messageProtocolEntity.url, messageProtocolEntity.ip,
                 messageProtocolEntity.size, messageProtocolEntity.fileName, messageProtocolEntity.encoding, messageProtocolEntity.width, messageProtocolEntity.height,
-                'Nova imagem da categoria %s: %s' % (category, caption),
+                'Nova imagem da categoria %s: %s' % (shortName, caption),
                 to = str(sub), preview = messageProtocolEntity.getPreview())
 
             print 'enviando imagem para', sub, outImage.getId()
             self.toLower(outImage)
 
 
+    def getResponseForTextMessage(self, messageProtocolEntity):
+        text = messageProtocolEntity.getBody().lower()
+
+        args = text.split(' ')
+
+        if args[0] == 'querofotos':
+            subscribed, shortName = userSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
+            
+            if subscribed:
+                rsp = "Inscrito com sucesso na categoria: %s" % shortName
+            else:
+                rsp = "Categoria %s nao encontrada" % shortName 
+            
+            return TextMessageProtocolEntity(rsp,
+                to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'naoquerofotos':
+            unsubscribed, shortName = userUnSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
+            
+            if unsubscribed:
+                rsp = "Inscricao na categoria %s removida com sucesso" % shortName
+            else:
+                rsp = "Categoria %s nao encontrada" % shortName 
+            
+            return TextMessageProtocolEntity(rsp,
+                to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'gostei':
+            liked = userLikeImage(jid=messageProtocolEntity.getFrom(), imageCode=args[1])['result'];
+            if liked >=0:
+                rsp = 'Imagem gostada com sucesso, total: %s gostadas' % liked
+            else:
+                rsp = 'Imagem com codigo %s nao encontrada' % args[1]
+
+            return TextMessageProtocolEntity(rsp,
+                to = messageProtocolEntity.getFrom())
+
+        else:
+            return TextMessageProtocolEntity(
+                text,
+                to = messageProtocolEntity.getFrom())
 
 
