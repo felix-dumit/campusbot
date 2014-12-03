@@ -1,4 +1,3 @@
-from layer import EchoLayer
 from yowsup.layers.auth                        import YowAuthenticationProtocolLayer
 from yowsup.layers.protocol_messages           import YowMessagesProtocolLayer
 from yowsup.layers.protocol_media              import YowMediaProtocolLayer
@@ -14,12 +13,13 @@ import settings_local
 
 from parse_rest.connection import register
 
-
 register(
     getattr(settings_local, 'APPLICATION_ID'),
     getattr(settings_local, 'REST_API_KEY'),
     master_key=getattr(settings_local, 'MASTER_KEY')
 )
+
+from layer import EchoLayer
 
 CREDENTIALS = ("5519987253448", "DWG1z2EldxHj0vxjYOaCQlKtl/8=") # replace with your phone and password
 

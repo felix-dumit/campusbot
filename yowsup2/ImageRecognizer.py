@@ -9,6 +9,7 @@ class ImageRecognizer():
     def recognizeImage(self, url, num=1):
         request = requests.post(self.api_url % 'classify/personal_photos', params={"urls": url})
         res = request.json()
+        print res
         return [str(x['name']) for x in res[0]['tags'][0:num]]
 
     def tagsForImage(self, url, thresh=20):

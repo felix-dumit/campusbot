@@ -1,0 +1,14 @@
+{
+    "applications": {
+        "CampusBot": {
+            "applicationId": "EQp8HleNw1sCyfPPshgQFsIcrF52gTZ0kPyfuW8o", 
+            "masterKey": "WAgkEiaveEO3FPQ7zpKfz9IN00WGXmEhxDCxh6HX"
+        }, 
+        "_default": {
+            "link": "CampusBot"
+        }
+    }, 
+    "global": {
+        "parseVersion": "1.3.2"
+    }
+}
