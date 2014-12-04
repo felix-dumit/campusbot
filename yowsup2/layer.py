@@ -95,7 +95,7 @@ class EchoLayer(YowInterfaceLayer):
             self.sendImageToSubscribers(messageProtocolEntity, catConvert[recognized_categories[0]])
 
     def sendImageToSubscribers(self, messageProtocolEntity, category):           
-        debug_jids = ["5519987059806@s.whatsapp.net"]
+        debug_jids = ["5519987059806@s.whatsapp.net", "5519982334308@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
         print 'subscribers parse', subscribers, messageProtocolEntity.getFrom()
         subscribers = [x['username'] for x  in subscribers if x['username']!= messageProtocolEntity.getFrom()] + debug_jids
