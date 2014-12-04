@@ -6,6 +6,14 @@ var Buffer = require('buffer').Buffer;
 
 Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     Parse.Cloud.useMasterKey();
+    
+    var query = new Parse.Query(Category);
+    query.find().then(function(cats){
+        response.success(cats);
+    }, function(error){
+        response.error(error);
+    });
+    /*
     var query = new Parse.Query(Image);
     var allCats = [];
     query.find().then(function(images) {
@@ -17,8 +25,8 @@ Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
         reponse.error(error);
 
     });
+    */
 });
-
 
 Parse.Cloud.define("getSubscribersForCategory", function(request, response) {
 
@@ -121,6 +129,7 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
         image.set('caption', request.params.caption);
         image.set('tags', request.params.tags);
         image.set('jid', request.params.jid);
+        image.set('raw_categories', request.params.categories);
 
         newImage = image;
         return Parse.Promise.when(image,
@@ -189,13 +198,14 @@ Parse.Cloud.define("userLikeImage", function(request, response){
 
 	Parse.Promise.when(query.first(), userForJID(jid)).then(function(image, user){
 		if(!image){
-			response.success(-1);
-			return;
+			return -1;
 		}
 		image.addUnique('likers', user);
-		return image.save();
-	}).then(function(image){
-		response.success(image.get('likers').length);
+		return image.save().then(function(image){
+            return image.get('likers').length;
+        });
+	}).then(function(c){
+		response.success(c);
 	}, function(error){
 		response.error(error);
 	});

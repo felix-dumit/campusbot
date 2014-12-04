@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- 
+
 from yowsup.layers.interface                           import YowInterfaceLayer, ProtocolEntityCallback
 from yowsup.layers.protocol_messages.protocolentities  import TextMessageProtocolEntity
 from yowsup.layers.protocol_media.protocolentities  import ImageDownloadableMediaMessageProtocolEntity,MediaMessageProtocolEntity
@@ -9,6 +12,7 @@ from parse_rest.datatypes import Object
 from parse_rest.datatypes import Function
 
 
+getUniqueImageCategories = Function("getUniqueImageCategories")
 getSubscribersForCategory = Function("getSubscribersForCategory")
 saveNewImage = Function("saveNewImage")
 userSubscribeToCategory = Function("userSubscribeToCategory")
@@ -17,6 +21,8 @@ userLikeImage = Function("userLikeImage")
 
 receipt_dic = {}
 ir = ImageRecognizer()
+
+categories = [str(x['shortName']) for x in getUniqueImageCategories()['result']]
 
 class Image(Object):
     pass
@@ -112,40 +118,51 @@ class EchoLayer(YowInterfaceLayer):
         args = text.split(' ')
 
         if args[0] == 'querofotos':
-            subscribed, shortName = userSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
+            if args[1] in categories:
+                subscribed, shortName = userSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
             
-            if subscribed:
-                rsp = "Inscrito com sucesso na categoria: %s" % shortName
+                if subscribed:
+                    rsp = "Inscrito com sucesso na categoria: %s " % shortName
+                else:
+                    rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
             else:
-                rsp = "Categoria %s nao encontrada" % shortName 
+                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(categories))
             
-            return TextMessageProtocolEntity(rsp,
-                to = messageProtocolEntity.getFrom())
+            return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'naoquerofotos':
-            unsubscribed, shortName = userUnSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
+            if args[1] in categories:
+                unsubscribed, shortName = userUnSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
             
-            if unsubscribed:
-                rsp = "Inscricao na categoria %s removida com sucesso" % shortName
+                if unsubscribed:
+                    rsp = "Inscrição na categoria %s removida com sucesso " % shortName
+                else:
+                    rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
             else:
-                rsp = "Categoria %s nao encontrada" % shortName 
+                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(categories))
             
-            return TextMessageProtocolEntity(rsp,
-                to = messageProtocolEntity.getFrom())
+            return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'gostei':
             liked = userLikeImage(jid=messageProtocolEntity.getFrom(), imageCode=args[1])['result'];
             if liked >=0:
-                rsp = 'Imagem gostada com sucesso, total: %s gostadas' % liked
+                rsp = 'Imagem gostada com sucesso, total: %s gostada%s' % (liked, 's' if liked > 1 else '')
             else:
-                rsp = 'Imagem com codigo %s nao encontrada' % args[1]
+                rsp = 'Imagem com codigo %s não encontrada ❌' % args[1]
 
-            return TextMessageProtocolEntity(rsp,
+            return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'oi':
+            return TextMessageProtocolEntity('Olá do CampusBot❗',
                 to = messageProtocolEntity.getFrom())
-
+        
         else:
-            return TextMessageProtocolEntity(
-                text,
-                to = messageProtocolEntity.getFrom())
+            txt = '''❗Comando não encontrado, os possíveis comandos são:\n
+→ querofotos <categoria>  - Se inscreva para receber novas fotos de uma das seguintes categorias:(pessoas, carros, flores, arquitetura, animais, natureza, comida, praia, arte, objetos, eventos, texto, pordosol)\n
+→ naoquerofotos <categoria> - Cancele sua inscrição para uma categoria\n
+→ gostei <numero da foto> - Goste de uma foto indicando o numero presente no display\n
+→ oi - Fale oi para o CampusBot\n
+            '''
+            return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
 
 
