@@ -33,14 +33,13 @@ Parse.Cloud.define("getSubscribersForCategory", function(request, response) {
     Parse.Cloud.useMasterKey();
 
     var category = request.params.category;
-    console.log('category:' + category);
 
     var query = new Parse.Query(Category);
-    query.equalTo('code', category);
+    query.equalTo('shortName', category);
     query.include('subscribers');
     query.first().then(function(cat) {
         if (!cat) {
-            response.success([]);
+            response.success([[],'']);
         } else {
             console.log('subscribers:' + cat.get('subscribers').length);
             response.success([cat.get('subscribers'), cat.get('shortName')]);
@@ -140,6 +139,7 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
     }).then(function(image, user, categories, count) {
         image.set('user', user);
         image.set('categories', categories);
+        image.set('category', categories[0]);
         image.set('code', ('00000' + count).substr(-5));
         return image.save();
     }).then(function(image) {

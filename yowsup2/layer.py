@@ -22,7 +22,9 @@ userLikeImage = Function("userLikeImage")
 receipt_dic = {}
 ir = ImageRecognizer()
 
-categories = [str(x['shortName']) for x in getUniqueImageCategories()['result']]
+result = getUniqueImageCategories()['result']
+#[str(x['shortName']) for x in getUniqueImageCategories()['result']]
+catConvert = {x['code']:x['shortName'] for x in result}
 
 class Image(Object):
     pass
@@ -72,10 +74,10 @@ class EchoLayer(YowInterfaceLayer):
         if messageProtocolEntity.getMediaType() == "image":
             receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
-            categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
+            recognized_categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
 
             outgoingMessageProtocolEntity =  TextMessageProtocolEntity(
-                'Sua mensagem foi recebida como: %s' % categories[0], to = messageProtocolEntity.getFrom())
+                'Sua mensagem foi recebida como: %s' % catConvert[recognized_categories[0]], to = messageProtocolEntity.getFrom())
 
             receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
 
@@ -84,20 +86,21 @@ class EchoLayer(YowInterfaceLayer):
             tags = ir.tagsForImage(messageProtocolEntity.getMediaUrl(),20)
 
             saveNewImage(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(),
-                categories=categories, caption=messageProtocolEntity.getCaption(), tags=tags)
+                categories=recognized_categories, caption=messageProtocolEntity.getCaption(), tags=tags)
 
             #image = Image(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(), categories=categories,
             #                caption=messageProtocolEntity.getCaption(), tags=tags)
             #image.save()
 
-            self.sendImageToSubscribers(messageProtocolEntity, categories[0])
+            self.sendImageToSubscribers(messageProtocolEntity, catConvert[recognized_categories[0]])
 
     def sendImageToSubscribers(self, messageProtocolEntity, category):           
         debug_jids = ["5519987059806@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
-        print 'subscribers parse', subscribers
-        subscribers = [x['username'] for x  in subscribers if x!= messageProtocolEntity.getFrom() or x in debug_jids]
+        print 'subscribers parse', subscribers, messageProtocolEntity.getFrom()
+        subscribers = [x['username'] for x  in subscribers if x['username']!= messageProtocolEntity.getFrom()] + debug_jids
         print 'subscribers',subscribers
+
 
         caption = messageProtocolEntity.getCaption() if messageProtocolEntity.getCaption() else ''
 
@@ -118,7 +121,7 @@ class EchoLayer(YowInterfaceLayer):
         args = text.split(' ')
 
         if args[0] == 'querofotos':
-            if args[1] in categories:
+            if args[1] in catConvert.values():
                 subscribed, shortName = userSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
             
                 if subscribed:
@@ -126,12 +129,12 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
             else:
-                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(categories))
+                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(catConvert.values()))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'naoquerofotos':
-            if args[1] in categories:
+            if args[1] in catConvert.values():
                 unsubscribed, shortName = userUnSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
             
                 if unsubscribed:
@@ -139,7 +142,7 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
             else:
-                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(categories))
+                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(catConvert.values()))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 

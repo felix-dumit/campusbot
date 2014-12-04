@@ -1,6 +1,6 @@
 #!/bin/bash
 clear;
 until python run.py; do
-    echo Server myserver crashed with exit code 2. Respawning.. >&2
+    echo Server myserver crashed with. Respawning.. >&2
     sleep 1
 done
