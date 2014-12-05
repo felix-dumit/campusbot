@@ -1,1 +1,0 @@
-from .iq_unregister import UnregisterIqProtocolEntity

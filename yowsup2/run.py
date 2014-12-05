@@ -24,7 +24,7 @@ register(
 
 from layer import EchoLayer
 
-CREDENTIALS = ("5519987253448", "DWG1z2EldxHj0vxjYOaCQlKtl/8=") # replace with your phone and password
+CREDENTIALS = (getattr(settings_local, 'PHONE'),getattr(settings_local, 'PASSWORD'))
 
 if __name__==  "__main__":
     layers = (
