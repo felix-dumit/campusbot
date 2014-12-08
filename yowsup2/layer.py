@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*- 
+import base64
 
 from yowsup.layers.interface                           import YowInterfaceLayer, ProtocolEntityCallback
 from yowsup.layers.protocol_messages.protocolentities  import TextMessageProtocolEntity
@@ -92,45 +93,42 @@ class EchoLayer(YowInterfaceLayer):
 
         tags = ir.tagsForImage(messageProtocolEntity.getMediaUrl(),20)
 
-        saveNewImage(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(),
-                categories=recognized_categories, caption=messageProtocolEntity.getCaption(), tags=tags,
-                mimeType=messageProtocolEntity.getMimeType(), fileHash=messageProtocolEntity.fileHash, fileName=messageProtocolEntity.fileName,
-                ip=messageProtocolEntity.ip, size=messageProtocolEntity.size, encoding=messageProtocolEntity.encoding, 
-                width=messageProtocolEntity.width, height=messageProtocolEntity.height, 
-                )#preview=messageProtocolEntity.getPreview().decode('utf-32'))
+        image = saveNewImage(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(), categories=recognized_categories, 
+            caption=messageProtocolEntity.getCaption(), tags=tags, mimeType=messageProtocolEntity.getMimeType(), 
+            fileHash=messageProtocolEntity.fileHash, fileName=messageProtocolEntity.fileName, ip=messageProtocolEntity.ip, 
+            size=messageProtocolEntity.size, encoding=messageProtocolEntity.encoding, width=messageProtocolEntity.width, 
+            height=messageProtocolEntity.height, preview= base64.b64encode(messageProtocolEntity.getPreview()))['result']
 
-
-        self.sendImageToSubscribers(messageProtocolEntity, catConvert[recognized_categories[0]])
+        print image
+        self.sendImageToSubscribers(image, catConvert[recognized_categories[0]])
 
     def onLocation(self, messageProtocolEntity):
         receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
+        previewStr = base64.b64encode(messageProtocolEntity.getPreview())
+
+
         print messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()
         outLocation = LocationMediaMessageProtocolEntity(messageProtocolEntity.getLatitude(),
-                messageProtocolEntity.getLongitude(), messageProtocolEntity.getLocationName(),
-                messageProtocolEntity.getLocationURL(), messageProtocolEntity.encoding,
-                to = messageProtocolEntity.getFrom(), preview=messageProtocolEntity.getPreview())
+            messageProtocolEntity.getLongitude(), messageProtocolEntity.getLocationName(),
+            messageProtocolEntity.getLocationURL(), messageProtocolEntity.encoding,
+            to = messageProtocolEntity.getFrom(), preview=previewStr.decode('base64'))
 
         receipt_dic[outLocation.getId()] = receipt
         self.toLower(outLocation)
 
 
-    def sendImageToSubscribers(self, messageProtocolEntity, category):           
+    def sendImageToSubscribers(self, image, category):           
         debug_jids = ["5519987059806@s.whatsapp.net"]#, "5519982334308@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
-        print 'subscribers parse', subscribers, messageProtocolEntity.getFrom()
-        subscribers = [x['username'] for x  in subscribers if x['username']!= messageProtocolEntity.getFrom()] + debug_jids
-        print 'subscribers',subscribers
-
-
-        caption = messageProtocolEntity.getCaption() if messageProtocolEntity.getCaption() else ''
+        subscribers = [x['username'] for x  in subscribers if x['username']!= image['jid']] + debug_jids
 
         for sub in subscribers:
             outImage = ImageDownloadableMediaMessageProtocolEntity(
-                messageProtocolEntity.getMimeType(), messageProtocolEntity.fileHash, messageProtocolEntity.url, messageProtocolEntity.ip,
-                messageProtocolEntity.size, messageProtocolEntity.fileName, messageProtocolEntity.encoding, messageProtocolEntity.width, messageProtocolEntity.height,
-                'Nova imagem da categoria %s: %s' % (shortName, caption),
-                to = str(sub), preview = messageProtocolEntity.getPreview())
+                image['mimeType'], image['fileHash'], image['url'], image['ip'],
+                image['size'], image['fileName'], image['encoding'], image['width'], 
+                image['height'], 'Nova imagem da categoria %s (%s): %s' % (shortName, image['code'], image['caption'] or ''),
+                to = str(sub), preview=image['preview'].decode('base64'))
 
             print 'enviando imagem para', sub, outImage.getId()
             self.toLower(outImage)
@@ -182,8 +180,8 @@ class EchoLayer(YowInterfaceLayer):
             if image:
                 return ImageDownloadableMediaMessageProtocolEntity(
                 image['mimeType'], image['fileHash'], image['url'], image['ip'], image['size'], image['fileName'],
-                image['encoding'], image['width'], image['height'],image['code'],
-                to = messageProtocolEntity.getFrom(), preview=image['preview'])          
+                image['encoding'], image['width'], image['height'], '%s: %s' % (image['code'], image['caption']),
+                to = messageProtocolEntity.getFrom(), preview=image['preview'].decode('base64'))          
             else:
                 return TextMessageProtocolEntity('Imagem com codigo %s não encontrada ❌' % args[1], 
                     to = messageProtocolEntity.getFrom())

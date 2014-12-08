@@ -132,7 +132,7 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
         image.set('jid', request.params.jid);
         image.set('raw_categories', request.params.categories);
         image.set('width', request.params.width);
-        image.set('height', request.params.heigth);
+        image.set('height', request.params.height);
         image.set('mimeType', request.params.mimeType);
         image.set('fileHash', request.params.fileHash);
         image.set('fileName', request.params.fileName);
