@@ -4,6 +4,7 @@
 from yowsup.layers.interface                           import YowInterfaceLayer, ProtocolEntityCallback
 from yowsup.layers.protocol_messages.protocolentities  import TextMessageProtocolEntity
 from yowsup.layers.protocol_media.protocolentities  import ImageDownloadableMediaMessageProtocolEntity,MediaMessageProtocolEntity
+from yowsup.layers.protocol_media.protocolentities  import LocationMediaMessageProtocolEntity,MediaMessageProtocolEntity
 from yowsup.layers.protocol_receipts.protocolentities  import OutgoingReceiptProtocolEntity
 from yowsup.layers.protocol_acks.protocolentities      import OutgoingAckProtocolEntity
 from ImageRecognizer import ImageRecognizer
@@ -18,6 +19,7 @@ saveNewImage = Function("saveNewImage")
 userSubscribeToCategory = Function("userSubscribeToCategory")
 userUnSubscribeToCategory = Function("userUnSubscribeToCategory")
 userLikeImage = Function("userLikeImage")
+retrieveImage = Function("retrieveImage")
 
 receipt_dic = {}
 ir = ImageRecognizer()
@@ -41,6 +43,7 @@ class EchoLayer(YowInterfaceLayer):
             self.onMessage(messageProtocolEntity)
         elif messageProtocolEntity.getType() == 'media':
             self.onMedia(messageProtocolEntity)
+
 
     @ProtocolEntityCallback("receipt")
     def onReceipt(self, entity):
@@ -67,35 +70,53 @@ class EchoLayer(YowInterfaceLayer):
 
 
     def onMedia(self, messageProtocolEntity):
-        print 'received media:', messageProtocolEntity
-
-        f = messageProtocolEntity.getFrom()
-        print  '-----', f
+        #print 'received media:', messageProtocolEntity
+        #print messageProtocolEntity.getPreview()
+        print  '-----', messageProtocolEntity.getFrom(False)
         if messageProtocolEntity.getMediaType() == "image":
-            receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
+            self.onImage(messageProtocolEntity)            
+        elif messageProtocolEntity.getMediaType() == 'location':
+            self.onLocation(messageProtocolEntity)
+           
 
-            recognized_categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
+    def onImage(self, messageProtocolEntity):
+        receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
-            outgoingMessageProtocolEntity =  TextMessageProtocolEntity(
-                'Sua mensagem foi recebida como: %s' % catConvert[recognized_categories[0]], to = messageProtocolEntity.getFrom())
+        recognized_categories = ir.recognizeImage(messageProtocolEntity.getMediaUrl(),3)
 
-            receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
+        outgoingMessageProtocolEntity =  TextMessageProtocolEntity('Sua mensagem foi recebida como: %s' % catConvert[recognized_categories[0]], to = messageProtocolEntity.getFrom())
 
-            self.toLower(outgoingMessageProtocolEntity)
+        receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
 
-            tags = ir.tagsForImage(messageProtocolEntity.getMediaUrl(),20)
+        self.toLower(outgoingMessageProtocolEntity)
 
-            saveNewImage(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(),
-                categories=recognized_categories, caption=messageProtocolEntity.getCaption(), tags=tags)
+        tags = ir.tagsForImage(messageProtocolEntity.getMediaUrl(),20)
 
-            #image = Image(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(), categories=categories,
-            #                caption=messageProtocolEntity.getCaption(), tags=tags)
-            #image.save()
+        saveNewImage(url=messageProtocolEntity.url, jid=messageProtocolEntity.getFrom(),
+                categories=recognized_categories, caption=messageProtocolEntity.getCaption(), tags=tags,
+                mimeType=messageProtocolEntity.getMimeType(), fileHash=messageProtocolEntity.fileHash, fileName=messageProtocolEntity.fileName,
+                ip=messageProtocolEntity.ip, size=messageProtocolEntity.size, encoding=messageProtocolEntity.encoding, 
+                width=messageProtocolEntity.width, height=messageProtocolEntity.height, 
+                )#preview=messageProtocolEntity.getPreview().decode('utf-32'))
 
-            self.sendImageToSubscribers(messageProtocolEntity, catConvert[recognized_categories[0]])
+
+        self.sendImageToSubscribers(messageProtocolEntity, catConvert[recognized_categories[0]])
+
+    def onLocation(self, messageProtocolEntity):
+        receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
+
+        print messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()
+        outLocation = LocationMediaMessageProtocolEntity(messageProtocolEntity.getLatitude(),
+                messageProtocolEntity.getLongitude(), messageProtocolEntity.getLocationName(),
+                messageProtocolEntity.getLocationURL(), messageProtocolEntity.encoding,
+                to = messageProtocolEntity.getFrom(), preview=messageProtocolEntity.getPreview())
+
+        receipt_dic[outLocation.getId()] = receipt
+        self.toLower(outLocation)
+
 
     def sendImageToSubscribers(self, messageProtocolEntity, category):           
-        debug_jids = ["5519987059806@s.whatsapp.net", "5519982334308@s.whatsapp.net"]
+        debug_jids = ["5519987059806@s.whatsapp.net"]#, "5519982334308@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
         print 'subscribers parse', subscribers, messageProtocolEntity.getFrom()
         subscribers = [x['username'] for x  in subscribers if x['username']!= messageProtocolEntity.getFrom()] + debug_jids
@@ -154,6 +175,18 @@ class EchoLayer(YowInterfaceLayer):
                 rsp = 'Imagem com codigo %s não encontrada ❌' % args[1]
 
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'copiar':
+            image = retrieveImage(imageCode=args[1])['result'];
+            print image
+            if image:
+                return ImageDownloadableMediaMessageProtocolEntity(
+                image['mimeType'], image['fileHash'], image['url'], image['ip'], image['size'], image['fileName'],
+                image['encoding'], image['width'], image['height'],image['code'],
+                to = messageProtocolEntity.getFrom(), preview=image['preview'])          
+            else:
+                return TextMessageProtocolEntity('Imagem com codigo %s não encontrada ❌' % args[1], 
+                    to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'oi':
             return TextMessageProtocolEntity('Olá do CampusBot❗',

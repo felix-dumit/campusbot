@@ -116,6 +116,8 @@ var userForJID = function(jid) {
 Parse.Cloud.define("saveNewImage", function(request, response) {
     Parse.Cloud.useMasterKey();
 
+    console.log('HERE:' + request.params.preview);
+
     var query = new Parse.Query(Image);
     query.equalTo('url', request.params.url);
 
@@ -129,6 +131,15 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
         image.set('tags', request.params.tags);
         image.set('jid', request.params.jid);
         image.set('raw_categories', request.params.categories);
+        image.set('width', request.params.width);
+        image.set('height', request.params.heigth);
+        image.set('mimeType', request.params.mimeType);
+        image.set('fileHash', request.params.fileHash);
+        image.set('fileName', request.params.fileName);
+        image.set('ip', request.params.ip);
+        image.set('size', request.params.size);
+        image.set('encoding', request.params.encoding);
+        image.set('preview', request.params.preview);
 
         newImage = image;
         return Parse.Promise.when(image,
@@ -209,5 +220,19 @@ Parse.Cloud.define("userLikeImage", function(request, response){
 	}, function(error){
 		response.error(error);
 	});
+});
+
+
+Parse.Cloud.define("retrieveImage", function(request, response){
+    var imageCode = request.params.imageCode;
+
+    var query = new Parse.Query(Image);
+    query.equalTo('code', imageCode);
+
+    query.first().then(function(image){
+        response.success(image);
+    }, function(error){
+        response.error(error);
+    });
 });
 
