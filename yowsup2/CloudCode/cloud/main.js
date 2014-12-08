@@ -1,8 +1,11 @@
 var _ = require('underscore');
 var Image = Parse.Object.extend("Image");
 var Category = Parse.Object.extend("Categories");
+var Display = Parse.Object.extend("Display");
 var Buffer = require('buffer').Buffer;
+var PUBNUB = require('cloud/pubnub');
 
+        //PUBNUB.sendMessageToChannel(channel, {
 
 Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     Parse.Cloud.useMasterKey();
@@ -13,19 +16,6 @@ Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     }, function(error){
         response.error(error);
     });
-    /*
-    var query = new Parse.Query(Image);
-    var allCats = [];
-    query.find().then(function(images) {
-        _.each(images, function(image) {
-            allCats = _.union(allCats, image.get('categories'))
-        });
-        response.success(_.uniq(allCats));
-    }, function(error) {
-        reponse.error(error);
-
-    });
-    */
 });
 
 Parse.Cloud.define("getSubscribersForCategory", function(request, response) {
@@ -234,5 +224,46 @@ Parse.Cloud.define("retrieveImage", function(request, response){
     }, function(error){
         response.error(error);
     });
+});
+
+
+Parse.Cloud.define("checkInAtLocation", function(request, response){
+    var lat = parseFloat(request.params.latitude);
+    var lon = parseFloat(request.params.longitude);
+    var jid = request.params.jid;
+
+    var query = new Parse.Query(Display);
+    var point = new Parse.GeoPoint({latitude:lat, longitude:lon});
+    query.withinKilometers('location', point, 1);
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(display, user){
+        if(!display){
+            return ["far", 0, 0];
+        }
+        var now = new Date();
+        var timeDiff = now - display.get('lastDate');
+        var checkTime = 60000
+        // existe usuario que fez checkin
+        if(display.get('user') && timeDiff < checkTime){
+            if(display.get('user').id == user.id){
+                return ["already", display.get('number'), parseInt((checkTime-timeDiff)/1000)];
+            }
+            else{
+                return ["other", display.get('number'), parseInt((checkTime-timeDiff)/1000)];
+            }
+        }
+        else{
+            display.set('user', user);
+            display.set('lastDate', now);
+            return display.save().then(function(savedDisplay){
+                return ["ok", savedDisplay.get('number'), 60];
+            });
+        }
+
+    }).then(function(rsp){
+        response.success(rsp);
+    }, function(error){
+        response.error(error);
+    });
+
 });
 

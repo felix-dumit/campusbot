@@ -21,6 +21,7 @@ userSubscribeToCategory = Function("userSubscribeToCategory")
 userUnSubscribeToCategory = Function("userUnSubscribeToCategory")
 userLikeImage = Function("userLikeImage")
 retrieveImage = Function("retrieveImage")
+checkInAtLocation = Function("checkInAtLocation")
 
 receipt_dic = {}
 ir = ImageRecognizer()
@@ -107,15 +108,34 @@ class EchoLayer(YowInterfaceLayer):
 
         previewStr = base64.b64encode(messageProtocolEntity.getPreview())
 
-
         print messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()
-        outLocation = LocationMediaMessageProtocolEntity(messageProtocolEntity.getLatitude(),
-            messageProtocolEntity.getLongitude(), messageProtocolEntity.getLocationName(),
-            messageProtocolEntity.getLocationURL(), messageProtocolEntity.encoding,
-            to = messageProtocolEntity.getFrom(), preview=previewStr.decode('base64'))
+        #outLocation = LocationMediaMessageProtocolEntity(messageProtocolEntity.getLatitude(),
+        #    messageProtocolEntity.getLongitude(), messageProtocolEntity.getLocationName(),
+        #    messageProtocolEntity.getLocationURL(), messageProtocolEntity.encoding,
+        #    to = messageProtocolEntity.getFrom(), preview=previewStr.decode('base64'))
 
-        receipt_dic[outLocation.getId()] = receipt
-        self.toLower(outLocation)
+        #receipt_dic[outLocation.getId()] = receipt
+        #self.toLower(outLocation)
+
+        code, number, time = checkInAtLocation(jid=messageProtocolEntity.getFrom(), latitude=messageProtocolEntity.getLatitude(),
+            longitude=messageProtocolEntity.getLongitude())['result']
+
+        if code == "far":
+            resp = "Por favor se aproxime de um display"
+        elif code == "already":
+            resp = 'Você já realizou checkin no display %s, válido por mais %s segundos' % (number, time)
+        elif code == "other":
+            resp = 'Já existe usuário no display %s, por favor aguarde mais %s segundos' % (number, time)
+        elif code == "ok":
+            resp = "Realizou checkin válido por %s segundos no display %s" % (time, number)
+        
+        outgoingMessageProtocolEntity = TextMessageProtocolEntity(resp, to = messageProtocolEntity.getFrom())
+
+        receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
+
+        self.toLower(outgoingMessageProtocolEntity)
+
+
 
 
     def sendImageToSubscribers(self, image, category):           
