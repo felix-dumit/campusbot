@@ -22,18 +22,13 @@ userUnSubscribeToCategory = Function("userUnSubscribeToCategory")
 userLikeImage = Function("userLikeImage")
 retrieveImage = Function("retrieveImage")
 checkInAtLocation = Function("checkInAtLocation")
+changeDisplayCategory = Function("changeDisplayCategory")
 
 receipt_dic = {}
 ir = ImageRecognizer()
 
 result = getUniqueImageCategories()['result']
-#[str(x['shortName']) for x in getUniqueImageCategories()['result']]
 catConvert = {x['code']:x['shortName'] for x in result}
-
-class Image(Object):
-    pass
-
-
 
 class EchoLayer(YowInterfaceLayer):
 
@@ -100,7 +95,6 @@ class EchoLayer(YowInterfaceLayer):
             size=messageProtocolEntity.size, encoding=messageProtocolEntity.encoding, width=messageProtocolEntity.width, 
             height=messageProtocolEntity.height, preview= base64.b64encode(messageProtocolEntity.getPreview()))['result']
 
-        print image
         self.sendImageToSubscribers(image, catConvert[recognized_categories[0]])
 
     def onLocation(self, messageProtocolEntity):
@@ -136,8 +130,6 @@ class EchoLayer(YowInterfaceLayer):
         self.toLower(outgoingMessageProtocolEntity)
 
 
-
-
     def sendImageToSubscribers(self, image, category):           
         debug_jids = ["5519987059806@s.whatsapp.net"]#, "5519982334308@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
@@ -166,9 +158,9 @@ class EchoLayer(YowInterfaceLayer):
                 if subscribed:
                     rsp = "Inscrito com sucesso na categoria: %s " % shortName
                 else:
-                    rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
+                    rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(catConvert.values()))
+                rsp = 'Categoria %s não encontrada,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -179,9 +171,9 @@ class EchoLayer(YowInterfaceLayer):
                 if unsubscribed:
                     rsp = "Inscrição na categoria %s removida com sucesso " % shortName
                 else:
-                    rsp = "Erro ao se inscrever na categoria %s ❌" % shortName 
+                    rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s não encontrada❗,\n categorias disponíveis: %s' % (args[1], ', '.join(catConvert.values()))
+                rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -190,7 +182,7 @@ class EchoLayer(YowInterfaceLayer):
             if liked >=0:
                 rsp = 'Imagem gostada com sucesso, total: %s gostada%s' % (liked, 's' if liked > 1 else '')
             else:
-                rsp = 'Imagem com codigo %s não encontrada ❌' % args[1]
+                rsp = 'Imagem com codigo %s não encontrada ' % args[1]
 
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -203,8 +195,22 @@ class EchoLayer(YowInterfaceLayer):
                 image['encoding'], image['width'], image['height'], '%s: %s' % (image['code'], image['caption']),
                 to = messageProtocolEntity.getFrom(), preview=image['preview'].decode('base64'))          
             else:
-                return TextMessageProtocolEntity('Imagem com codigo %s não encontrada ❌' % args[1], 
+                return TextMessageProtocolEntity('Imagem com código %s não encontrada ' % args[1], 
                     to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'display':
+            if args[1] in catConvert.values():
+                status, shortName, display = changeDisplayCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
+                if status == 'noCat':
+                    rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                elif status =='noDisplay':
+                    rsp = 'Realize primeiro checkin em um display!'
+                elif status == "ok":
+                    rsp = 'Categoria do display %s mudada para %s' % (display, shortName)
+            else:
+                rsp = "Categoria %s não encontrada,\n categorias disponíveis: %s" % (args[1], ', '.join(sorted(catConvert.values())))
+            
+            return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'oi':
             return TextMessageProtocolEntity('Olá do CampusBot❗',

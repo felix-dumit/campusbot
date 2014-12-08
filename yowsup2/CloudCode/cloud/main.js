@@ -5,12 +5,12 @@ var Display = Parse.Object.extend("Display");
 var Buffer = require('buffer').Buffer;
 var PUBNUB = require('cloud/pubnub');
 
-        //PUBNUB.sendMessageToChannel(channel, {
 
 Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     Parse.Cloud.useMasterKey();
     
     var query = new Parse.Query(Category);
+    query.addAscending('shortName');
     query.find().then(function(cats){
         response.success(cats);
     }, function(error){
@@ -227,6 +227,9 @@ Parse.Cloud.define("retrieveImage", function(request, response){
 });
 
 
+
+var checkTime = 60000;
+
 Parse.Cloud.define("checkInAtLocation", function(request, response){
     var lat = parseFloat(request.params.latitude);
     var lon = parseFloat(request.params.longitude);
@@ -241,7 +244,6 @@ Parse.Cloud.define("checkInAtLocation", function(request, response){
         }
         var now = new Date();
         var timeDiff = now - display.get('lastDate');
-        var checkTime = 60000
         // existe usuario que fez checkin
         if(display.get('user') && timeDiff < checkTime){
             if(display.get('user').id == user.id){
@@ -266,4 +268,39 @@ Parse.Cloud.define("checkInAtLocation", function(request, response){
     });
 
 });
+
+
+Parse.Cloud.define("changeDisplayCategory", function(request, response){
+    var shortName = request.params.category;
+    var jid = request.params.jid;
+
+    var query = new Parse.Query(Category);
+    query.equalTo('shortName', shortName);
+
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(category, user) {
+        if(!category){
+            return ["noCat", shortName, -1]
+        }
+        var query = new Parse.Query(Display);
+        query.equalTo('user', user);
+        return query.first().then(function(display){
+            var now = new Date();
+            var timeDiff = now - display.get('lastDate');
+            if(display && timeDiff < checkTime){
+                var channel = 'display' + display.get('number');
+                return PUBNUB.sendMessageToChannel(channel, {category: category})
+                .then(function(){
+                    return ["ok", shortName, display.get('number')];
+                });
+            }
+            else{
+                return ["noDisplay", shortName, 0]
+            }
+        });
+    }).then(function(rsp){
+        response.success(rsp);
+    }, function(error){
+        response.error(error);
+    });
+})
 
