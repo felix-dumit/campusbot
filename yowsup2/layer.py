@@ -131,7 +131,7 @@ class EchoLayer(YowInterfaceLayer):
 
 
     def sendImageToSubscribers(self, image, category):           
-        debug_jids = ["5519987059806@s.whatsapp.net"]#, "5519982334308@s.whatsapp.net"]
+        debug_jids = ["5519987059806@s.whatsapp.net", "5519982334308@s.whatsapp.net"]
         subscribers, shortName = getSubscribersForCategory(category=category)['result']
         subscribers = [x['username'] for x  in subscribers if x['username']!= image['jid']] + debug_jids
 
