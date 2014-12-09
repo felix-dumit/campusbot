@@ -160,7 +160,7 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s não encontrada,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s nao encontrada,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -169,11 +169,11 @@ class EchoLayer(YowInterfaceLayer):
                 unsubscribed, shortName = userUnSubscribeToCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
             
                 if unsubscribed:
-                    rsp = "Inscrição na categoria %s removida com sucesso " % shortName
+                    rsp = "Inscricao na categoria %s removida com sucesso " % shortName
                 else:
                     rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s nao encontrada!,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -182,7 +182,7 @@ class EchoLayer(YowInterfaceLayer):
             if liked >=0:
                 rsp = 'Imagem gostada com sucesso, total: %s gostada%s' % (liked, 's' if liked > 1 else '')
             else:
-                rsp = 'Imagem com codigo %s não encontrada ' % args[1]
+                rsp = 'Imagem com codigo %s nao encontrada ' % args[1]
 
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -195,20 +195,20 @@ class EchoLayer(YowInterfaceLayer):
                 image['encoding'], image['width'], image['height'], '%s: %s' % (image['code'], image['caption']),
                 to = messageProtocolEntity.getFrom(), preview=image['preview'].decode('base64'))          
             else:
-                return TextMessageProtocolEntity('Imagem com código %s não encontrada ' % args[1], 
+                return TextMessageProtocolEntity('Imagem com código %s nao encontrada ' % args[1], 
                     to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'display':
             if args[1] in catConvert.values():
                 status, shortName, display = changeDisplayCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
                 if status == 'noCat':
-                    rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                    rsp = 'Categoria %s nao encontrada!,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
                 elif status =='noDisplay':
                     rsp = 'Realize primeiro checkin em um display!'
                 elif status == "ok":
                     rsp = 'Categoria do display %s mudada para %s' % (display, shortName)
             else:
-                rsp = "Categoria %s não encontrada,\n categorias disponíveis: %s" % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s nao encontrada,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -217,9 +217,9 @@ class EchoLayer(YowInterfaceLayer):
                 to = messageProtocolEntity.getFrom())
         
         else:
-            txt = '''❗Comando não encontrado, os possíveis comandos são:\n
+            txt = '''❗Comando nao encontrado, os possíveis comandos são:\n
 → querofotos <categoria>  - Se inscreva para receber novas fotos de uma das seguintes categorias:(pessoas, carros, flores, arquitetura, animais, natureza, comida, praia, arte, objetos, eventos, texto, pordosol)\n
-→ naoquerofotos <categoria> - Cancele sua inscrição para uma categoria\n
+→ naoquerofotos <categoria> - Cancele sua Inscricao para uma categoria\n
 → gostei <numero da foto> - Goste de uma foto indicando o numero presente no display\n
 → oi - Fale oi para o CampusBot\n
             '''

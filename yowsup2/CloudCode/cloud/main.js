@@ -237,7 +237,7 @@ Parse.Cloud.define("checkInAtLocation", function(request, response){
 
     var query = new Parse.Query(Display);
     var point = new Parse.GeoPoint({latitude:lat, longitude:lon});
-    query.withinKilometers('location', point, 1);
+    query.withinKilometers('location', point, 0.1);
     Parse.Promise.when(query.first(), userForJID(jid)).then(function(display, user){
         if(!display){
             return ["far", 0, 0];
