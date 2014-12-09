@@ -8,12 +8,12 @@ var PUBNUB = require('cloud/pubnub');
 
 Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     Parse.Cloud.useMasterKey();
-    
+
     var query = new Parse.Query(Category);
     query.addAscending('shortName');
-    query.find().then(function(cats){
+    query.find().then(function(cats) {
         response.success(cats);
-    }, function(error){
+    }, function(error) {
         response.error(error);
     });
 });
@@ -29,7 +29,9 @@ Parse.Cloud.define("getSubscribersForCategory", function(request, response) {
     query.include('subscribers');
     query.first().then(function(cat) {
         if (!cat) {
-            response.success([[],'']);
+            response.success([
+                [], ''
+            ]);
         } else {
             console.log('subscribers:' + cat.get('subscribers').length);
             response.success([cat.get('subscribers'), cat.get('shortName')]);
@@ -190,38 +192,38 @@ Parse.Cloud.define("userUnSubscribeToCategory", function(request, response) {
 });
 
 
-Parse.Cloud.define("userLikeImage", function(request, response){
-	var jid = request.params.jid;
-	var imageCode = request.params.imageCode;
-
-	var query = new Parse.Query(Image);
-	query.equalTo('code', imageCode);
-
-	Parse.Promise.when(query.first(), userForJID(jid)).then(function(image, user){
-		if(!image){
-			return -1;
-		}
-		image.addUnique('likers', user);
-		return image.save().then(function(image){
-            return image.get('likers').length;
-        });
-	}).then(function(c){
-		response.success(c);
-	}, function(error){
-		response.error(error);
-	});
-});
-
-
-Parse.Cloud.define("retrieveImage", function(request, response){
+Parse.Cloud.define("userLikeImage", function(request, response) {
+    var jid = request.params.jid;
     var imageCode = request.params.imageCode;
 
     var query = new Parse.Query(Image);
     query.equalTo('code', imageCode);
 
-    query.first().then(function(image){
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(image, user) {
+        if (!image) {
+            return -1;
+        }
+        image.addUnique('likers', user);
+        return image.save().then(function(image) {
+            return image.get('likers').length;
+        });
+    }).then(function(c) {
+        response.success(c);
+    }, function(error) {
+        response.error(error);
+    });
+});
+
+
+Parse.Cloud.define("retrieveImage", function(request, response) {
+    var imageCode = request.params.imageCode;
+
+    var query = new Parse.Query(Image);
+    query.equalTo('code', imageCode);
+
+    query.first().then(function(image) {
         response.success(image);
-    }, function(error){
+    }, function(error) {
         response.error(error);
     });
 });
@@ -230,47 +232,50 @@ Parse.Cloud.define("retrieveImage", function(request, response){
 
 var checkTime = 60000;
 
-Parse.Cloud.define("checkInAtLocation", function(request, response){
+Parse.Cloud.define("checkInAtLocation", function(request, response) {
     var lat = parseFloat(request.params.latitude);
     var lon = parseFloat(request.params.longitude);
     var jid = request.params.jid;
 
     var query = new Parse.Query(Display);
-    var point = new Parse.GeoPoint({latitude:lat, longitude:lon});
+    var point = new Parse.GeoPoint({
+        latitude: lat,
+        longitude: lon
+    });
     query.withinKilometers('location', point, 0.1);
-    Parse.Promise.when(query.first(), userForJID(jid)).then(function(display, user){
-        if(!display){
+    Parse.Promise.when(query.first(), userForJID(jid)).then(function(display, user) {
+        if (!display) {
             return ["far", 0, 0];
         }
         var now = new Date();
         var timeDiff = now - display.get('lastDate');
         // existe usuario que fez checkin
-        if(display.get('user') && timeDiff < checkTime){
-            if(display.get('user').id == user.id){
-                return ["already", display.get('number'), parseInt((checkTime-timeDiff)/1000)];
+        if (display.get('user') && timeDiff < checkTime) {
+            if (display.get('user').id == user.id) {
+                return ["already", display.get('number'), parseInt((checkTime - timeDiff) / 1000)];
+            } else {
+                return ["other", display.get('number'), parseInt((checkTime - timeDiff) / 1000)];
             }
-            else{
-                return ["other", display.get('number'), parseInt((checkTime-timeDiff)/1000)];
-            }
-        }
-        else{
+        } else {
             display.set('user', user);
             display.set('lastDate', now);
-            return display.save().then(function(savedDisplay){
+            return display.save().then(function(savedDisplay) {
                 return ["ok", savedDisplay.get('number'), 60];
             });
         }
 
-    }).then(function(rsp){
+    }).then(function(rsp) {
         response.success(rsp);
-    }, function(error){
+    }, function(error) {
         response.error(error);
     });
 
 });
 
 
-Parse.Cloud.define("changeDisplayCategory", function(request, response){
+Parse.Cloud.define("changeDisplayCategory", function(request, response) {
+    Parse.Cloud.useMasterKey();
+
     var shortName = request.params.category;
     var jid = request.params.jid;
 
@@ -278,29 +283,33 @@ Parse.Cloud.define("changeDisplayCategory", function(request, response){
     query.equalTo('shortName', shortName);
 
     Parse.Promise.when(query.first(), userForJID(jid)).then(function(category, user) {
-        if(!category){
+        if (!category) {
             return ["noCat", shortName, -1]
         }
         var query = new Parse.Query(Display);
         query.equalTo('user', user);
-        return query.first().then(function(display){
+        query.addDescending('lastDate');
+        return query.first().then(function(display) {
+            console.log(JSON.stringify(display));
             var now = new Date();
             var timeDiff = now - display.get('lastDate');
-            if(display && timeDiff < checkTime){
+            console.log(timeDiff + "  |  " + checkTime);
+            console.log(now);
+            if (display && timeDiff < checkTime) {
                 var channel = 'display' + display.get('number');
-                return PUBNUB.sendMessageToChannel(channel, {category: category})
-                .then(function(){
-                    return ["ok", shortName, display.get('number')];
-                });
-            }
-            else{
+                return PUBNUB.sendMessageToChannel(channel, {
+                        category: category
+                    })
+                    .then(function() {
+                        return ["ok", shortName, display.get('number')];
+                    });
+            } else {
                 return ["noDisplay", shortName, 0]
             }
         });
-    }).then(function(rsp){
+    }).then(function(rsp) {
         response.success(rsp);
-    }, function(error){
+    }, function(error) {
         response.error(error);
     });
 })
-

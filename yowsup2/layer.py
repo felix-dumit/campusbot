@@ -100,7 +100,7 @@ class EchoLayer(YowInterfaceLayer):
     def onLocation(self, messageProtocolEntity):
         receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
-        previewStr = base64.b64encode(messageProtocolEntity.getPreview())
+        #previewStr = base64.b64encode(messageProtocolEntity.getPreview())
 
         print messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()
         #outLocation = LocationMediaMessageProtocolEntity(messageProtocolEntity.getLatitude(),
@@ -150,6 +150,7 @@ class EchoLayer(YowInterfaceLayer):
         text = messageProtocolEntity.getBody().lower()
 
         args = text.split(' ')
+        args.append('')
 
         if args[0] == 'querofotos':
             if args[1] in catConvert.values():
