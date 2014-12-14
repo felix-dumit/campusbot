@@ -1,6 +1,7 @@
 from yowsup.layers import YowLayer, YowLayerEvent, YowProtocolLayer
 from .protocolentities import ImageDownloadableMediaMessageProtocolEntity
 from .protocolentities import LocationMediaMessageProtocolEntity
+from .protocolentities import VCardMediaMessageProtocolEntity
 
 class YowMediaProtocolLayer(YowProtocolLayer):
     def __init__(self):
@@ -25,4 +26,7 @@ class YowMediaProtocolLayer(YowProtocolLayer):
                 self.toUpper(entity)    
             if mediaNode.getAttributeValue("type") == "location":
                 entity = LocationMediaMessageProtocolEntity.fromProtocolTreeNode(node)
+                self.toUpper(entity)
+            if mediaNode.getAttributeValue("type") == "vcard":
+                entity = VCardMediaMessageProtocolEntity.fromProtocolTreeNode(node)
                 self.toUpper(entity)
