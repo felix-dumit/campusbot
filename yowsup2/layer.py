@@ -8,7 +8,7 @@ from yowsup.layers.protocol_media.protocolentities  import ImageDownloadableMedi
 from yowsup.layers.protocol_media.protocolentities  import LocationMediaMessageProtocolEntity,MediaMessageProtocolEntity
 from yowsup.layers.protocol_receipts.protocolentities  import OutgoingReceiptProtocolEntity
 from yowsup.layers.protocol_acks.protocolentities      import OutgoingAckProtocolEntity
-from ImageRecognizer import ImageRecognizer
+from ExternalAPI import ImageRecognizer, PlacesApi
 
 from parse_rest.datatypes import Object
 from parse_rest.datatypes import Function
@@ -23,9 +23,16 @@ userLikeImage = Function("userLikeImage")
 retrieveImage = Function("retrieveImage")
 checkInAtLocation = Function("checkInAtLocation")
 changeDisplayCategory = Function("changeDisplayCategory")
+checkoutAtDisplay = Function("checkoutAtDisplay")
+getPreviewForImageURL = Function("getPreviewForImageURL")
+
+PREVIEWLOCO = getPreviewForImageURL(url='http://maps.gstatic.com/mapfiles/place_api/icons/university-71.png')['result']
 
 receipt_dic = {}
 ir = ImageRecognizer()
+
+p = PlacesApi()
+p.searchLocation('Instituto conputacao unicamp')
 
 result = getUniqueImageCategories()['result']
 catConvert = {x['code']:x['shortName'] for x in result}
@@ -213,6 +220,14 @@ class EchoLayer(YowInterfaceLayer):
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
+        elif args[0] == 'sairdisplay':
+            status, display = checkoutAtDisplay(jid=messageProtocolEntity.getFrom())['result']
+            if status == 'noCheckin':
+                txt = 'Voce ja nao estava em nenhum display'
+            else:
+                txt = 'Checkout do display %s efetuado com sucesso' % display
+            return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
+
         elif args[0] == 'oi':
             return TextMessageProtocolEntity('Olá do CampusBot❗',
                 to = messageProtocolEntity.getFrom())
@@ -223,6 +238,15 @@ class EchoLayer(YowInterfaceLayer):
 → naoquerofotos <categoria> - Cancele sua Inscricao para uma categoria\n
 → gostei <numero da foto> - Goste de uma foto indicando o numero presente no display\n
 → oi - Fale oi para o CampusBot\n
+→ Envie sua localizacao para realizar checkin em um display\n
+→ display <categoria> - Apos feito o checkin mude a categoria mostrada no display\n
+→ sairdisplay - Libere o display para outra pessoa utilizar\n
+→ Ondequeeh <lugar> - Pesquise um lugar no campus\n
+
+
+
+
+
             '''
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
 

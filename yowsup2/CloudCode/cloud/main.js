@@ -1,10 +1,12 @@
+require('cloud/imagePreview')
+
 var _ = require('underscore');
 var Image = Parse.Object.extend("Image");
+
 var Category = Parse.Object.extend("Categories");
 var Display = Parse.Object.extend("Display");
 var Buffer = require('buffer').Buffer;
 var PUBNUB = require('cloud/pubnub');
-
 
 Parse.Cloud.define("getUniqueImageCategories", function(request, response) {
     Parse.Cloud.useMasterKey();
@@ -103,6 +105,13 @@ var userForJID = function(jid) {
     });
 
     return promise;
+}
+
+var remainingCheckInTime = function(display) {
+    var now = new Date();
+    var timeDiff = now - display.get('lastDate');
+    return parseInt((60000 - timeDiff) / 1000);
+
 }
 
 Parse.Cloud.define("saveNewImage", function(request, response) {
@@ -228,10 +237,6 @@ Parse.Cloud.define("retrieveImage", function(request, response) {
     });
 });
 
-
-
-var checkTime = 60000;
-
 Parse.Cloud.define("checkInAtLocation", function(request, response) {
     var lat = parseFloat(request.params.latitude);
     var lon = parseFloat(request.params.longitude);
@@ -247,18 +252,17 @@ Parse.Cloud.define("checkInAtLocation", function(request, response) {
         if (!display) {
             return ["far", 0, 0];
         }
-        var now = new Date();
-        var timeDiff = now - display.get('lastDate');
         // existe usuario que fez checkin
-        if (display.get('user') && timeDiff < checkTime) {
+        rct = remainingCheckInTime(display);
+        if (display.get('user') && rct > 0) {
             if (display.get('user').id == user.id) {
-                return ["already", display.get('number'), parseInt((checkTime - timeDiff) / 1000)];
+                return ["already", display.get('number'), rct];
             } else {
-                return ["other", display.get('number'), parseInt((checkTime - timeDiff) / 1000)];
+                return ["other", display.get('number'), rct];
             }
         } else {
             display.set('user', user);
-            display.set('lastDate', now);
+            display.set('lastDate', new Date());
             return display.save().then(function(savedDisplay) {
                 return ["ok", savedDisplay.get('number'), 60];
             });
@@ -270,6 +274,27 @@ Parse.Cloud.define("checkInAtLocation", function(request, response) {
         response.error(error);
     });
 
+});
+
+Parse.Cloud.define("checkoutAtDisplay", function(request, response) {
+    var jid = request.params.jid;
+    userForJID(jid).then(function(user) {
+        var query = new Parse.Query(Display);
+        query.equalTo('user', user);
+        return query.first();
+    }).then(function(display) {
+        if (!display || remainingCheckInTime(display) <= 0) {
+            return ["noCheckin", -1]
+        }
+        display.unset('user');
+        return display.save().then(function(savedDisplay) {
+            return ["checkout", savedDisplay.get('number')];
+        });
+    }).then(function(rsp) {
+        response.success(rsp);
+    }, function(error) {
+        response.error(error);
+    });
 });
 
 
@@ -291,11 +316,9 @@ Parse.Cloud.define("changeDisplayCategory", function(request, response) {
         query.addDescending('lastDate');
         return query.first().then(function(display) {
             console.log(JSON.stringify(display));
-            var now = new Date();
-            var timeDiff = now - display.get('lastDate');
-            console.log(timeDiff + "  |  " + checkTime);
-            console.log(now);
-            if (display && timeDiff < checkTime) {
+
+            rct = remainingCheckInTime(display);
+            if (display && rct > 0) {
                 var channel = 'display' + display.get('number');
                 return PUBNUB.sendMessageToChannel(channel, {
                         category: category
@@ -312,4 +335,4 @@ Parse.Cloud.define("changeDisplayCategory", function(request, response) {
     }, function(error) {
         response.error(error);
     });
-})
+});
