@@ -321,7 +321,7 @@ Parse.Cloud.define("changeDisplayCategory", function(request, response) {
             if (display && rct > 0) {
                 var channel = 'display' + display.get('number');
                 return PUBNUB.sendMessageToChannel(channel, {
-                        category: category
+                        category: category.get('shortName')
                     })
                     .then(function() {
                         return ["ok", shortName, display.get('number')];
