@@ -26,7 +26,7 @@ class PlacesApi():
         self.api_key = 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws'
         self.api_url = 'https://maps.googleapis.com/maps/api/place/%s/json'
     def searchLocation(self, searchString):
-        s =searchString.replace(' ', '+')
+        s = searchString.strip()
         r = requests.get(self.api_url % 'nearbysearch', 
             params={
                     'location': '-22.817106,-47.069783', 'radius': 5000,
@@ -53,6 +53,19 @@ class PlacesApi():
         print r.json()
         return r.json().get('status') == 'OK'
 
+    def nearestLocation(self, lat, lon):
+        r = requests.get(self.api_url % 'nearbysearch', params={
+            "key":self.api_key,
+            "location": "%s,%s" % (lat, lon),
+            "rankby": "distance",
+            "types": "establishment"
+            })
+        
+        if r.json().get('status') == 'OK':
+            return r.json().get('results')[0]
+        else:
+            return None
+
 
 if __name__ == "__main__":
     ir = ImageRecognizer()
@@ -61,7 +74,7 @@ if __name__ == "__main__":
     #r = requests.get('https://maps.googleapis.com/maps/api/place/textsearch/json?query=XJXSKDJMXAMC&key=%s' % 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
     #r = requests.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json?keyword=XJXSKDJMXAMC&location=-22.817106,-47.069783&radius=5&key=%s' % 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
     p = PlacesApi()
-    r = p.searchLocation('XJXSKDJMXAMC')
+    r = p.searchLocation('casafelix')
     #r = p.addLocation('XJXSKDJMXAMC', -22.817106,-47.069783 )
     print r
 

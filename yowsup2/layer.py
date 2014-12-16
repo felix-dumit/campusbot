@@ -108,14 +108,23 @@ class EchoLayer(YowInterfaceLayer):
 
         #previewStr = base64.b64encode(messageProtocolEntity.getPreview())
         if messageProtocolEntity.getFrom() in waiting_location_dic:
-            if placesAPI.addLocation(waiting_location_dic[messageProtocolEntity.getFrom()], 
-                messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()):
-
-                outgoingMessageProtocolEntity = TextMessageProtocolEntity('Novo lugar criado com sucesso', 
-                to = messageProtocolEntity.getFrom())  
-            else:                   
-                outgoingMessageProtocolEntity = TextMessageProtocolEntity('Erro ao criar lugar', 
-                to = messageProtocolEntity.getFrom())    
+            ltype, place = waiting_location_dic[messageProtocolEntity.getFrom()]
+            if ltype == 'newplace':
+                if placesAPI.addLocation(place, messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()):
+                    outgoingMessageProtocolEntity = TextMessageProtocolEntity('Novo lugar (%s) criado com sucesso' % place, 
+                    to = messageProtocolEntity.getFrom())  
+                else:                   
+                    outgoingMessageProtocolEntity = TextMessageProtocolEntity('Erro ao criar lugar', 
+                    to = messageProtocolEntity.getFrom())  
+            elif ltype =='whereami':
+                location = placesAPI.nearestLocation(messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude())
+                if location:
+                    outgoingMessageProtocolEntity = LocationMediaMessageProtocolEntity(location['geometry']['location']['lat'],
+                    location['geometry']['location']['lng'], location['name'].encode('utf-8'),
+                    None, 'raw', to = messageProtocolEntity.getFrom())
+                else:
+                    outgoingMessageProtocolEntity = TextMessageProtocolEntity('Nenhum lugar encontrado em um raio de 5km da sua localização', 
+                    to = messageProtocolEntity.getFrom()) 
 
             del waiting_location_dic[messageProtocolEntity.getFrom()]
 
@@ -247,9 +256,14 @@ class EchoLayer(YowInterfaceLayer):
 
         elif args[0] == 'novolugar':
             place = ' '.join(args[1:])
-            waiting_location_dic[messageProtocolEntity.getFrom()] = place
+            waiting_location_dic[messageProtocolEntity.getFrom()] = ['newplace',place]
             
             return TextMessageProtocolEntity('Aguardando localização para: %s' % place,
+                    to = messageProtocolEntity.getFrom())
+
+        elif args[0] == 'ondeestou':
+            waiting_location_dic[messageProtocolEntity.getFrom()] = ['whereami', '']
+            return TextMessageProtocolEntity('Envie sua localização para encontrarmos o lugar mais próximo',
                     to = messageProtocolEntity.getFrom())
         
         elif args[0] == 'oi':
@@ -267,6 +281,7 @@ class EchoLayer(YowInterfaceLayer):
 → sairdisplay - Libere o display para outra pessoa utilizar\n
 → Ondeeh <lugar> - Pesquise um lugar no campus\n
 → novolugar <lugar> - Crie um novo lugar no campus\n
+→ ondeestou - Descubra o lugar mais próximo de voce
             ''' % args[0]
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
 
