@@ -203,7 +203,6 @@ class EchoLayer(YowInterfaceLayer):
 
         elif args[0] == 'copiar':
             image = retrieveImage(imageCode=args[1])['result'];
-            print image
             if image:
                 return ImageDownloadableMediaMessageProtocolEntity(
                 image['mimeType'], image['fileHash'], image['url'], image['ip'], image['size'], image['fileName'],
@@ -235,7 +234,7 @@ class EchoLayer(YowInterfaceLayer):
                 txt = 'Checkout do display %s efetuado com sucesso' % display
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
 
-        elif args[0] == 'ondequeeh':
+        elif args[0] == 'ondeeh':
             search = ' '.join(args[1:])
             location = placesAPI.searchLocation(search)
             if location:
@@ -266,7 +265,7 @@ class EchoLayer(YowInterfaceLayer):
 → Envie sua localizacao para realizar checkin em um display\n
 → display <categoria> - Apos feito o checkin mude a categoria mostrada no display\n
 → sairdisplay - Libere o display para outra pessoa utilizar\n
-→ Ondequeeh <lugar> - Pesquise um lugar no campus\n
+→ Ondeeh <lugar> - Pesquise um lugar no campus\n
 → novolugar <lugar> - Crie um novo lugar no campus\n
             ''' % args[0]
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())

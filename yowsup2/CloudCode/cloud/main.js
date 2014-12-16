@@ -123,6 +123,7 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
     query.equalTo('url', request.params.url);
 
     var countQuery = new Parse.Query(Image);
+    countQuery.addDescending('createdAt');
 
     query.first().then(function(image) {
         return image || new Image();
@@ -146,9 +147,10 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
         return Parse.Promise.when(image,
             userForJID(request.params.jid),
             categoryForCodes(request.params.categories),
-            countQuery.count()
+            countQuery.first()
         );
-    }).then(function(image, user, categories, count) {
+    }).then(function(image, user, categories, lastImage) {
+        count = parseInt(lastImage.get('code')) + 1
         image.set('user', user);
         image.set('categories', categories);
         image.set('category', categories[0]);
@@ -231,7 +233,7 @@ Parse.Cloud.define("retrieveImage", function(request, response) {
     query.equalTo('code', imageCode);
 
     query.first().then(function(image) {
-        response.success(image);
+        response.success(image || []);
     }, function(error) {
         response.error(error);
     });
@@ -277,13 +279,17 @@ Parse.Cloud.define("checkInAtLocation", function(request, response) {
 });
 
 Parse.Cloud.define("checkoutAtDisplay", function(request, response) {
+    Parse.Cloud.useMasterKey();
+
     var jid = request.params.jid;
     userForJID(jid).then(function(user) {
         var query = new Parse.Query(Display);
         query.equalTo('user', user);
+        query.addDescending('lastDate');
         return query.first();
     }).then(function(display) {
-        if (!display || remainingCheckInTime(display) <= 0) {
+        rct = remainingCheckInTime(display);
+        if (!display || rct <= 0) {
             return ["noCheckin", -1]
         }
         display.unset('user');
