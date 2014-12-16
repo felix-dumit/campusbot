@@ -38,6 +38,7 @@ placesAPI = PlacesApi()
 
 result = getUniqueImageCategories()['result']
 catConvert = {x['code']:x['shortName'] for x in result}
+all_categories = str(', '.join(sorted(catConvert.values())))
 
 class EchoLayer(YowInterfaceLayer):
 
@@ -45,7 +46,11 @@ class EchoLayer(YowInterfaceLayer):
     def onReceive(self, messageProtocolEntity):
 
         print messageProtocolEntity.getType(), messageProtocolEntity.getFrom()
-        if messageProtocolEntity.getType() == 'text':
+        
+        if messageProtocolEntity.getType() != 'media' or messageProtocolEntity.getMediaType() != 'location':
+            if messageProtocolEntity.getFrom() in waiting_location_dic:
+                del waiting_location_dic[messageProtocolEntity.getFrom()]
+        if messageProtocolEntity.getType() == 'text':            
             self.onMessage(messageProtocolEntity)
         elif messageProtocolEntity.getType() == 'media':
             self.onMedia(messageProtocolEntity)
@@ -74,8 +79,7 @@ class EchoLayer(YowInterfaceLayer):
 
 
     def onMedia(self, messageProtocolEntity):
-        #print 'received media:', messageProtocolEntity
-        #print messageProtocolEntity.getPreview()
+
         if messageProtocolEntity.getMediaType() == "image":
             self.onImage(messageProtocolEntity)            
         elif messageProtocolEntity.getMediaType() == 'location':
@@ -107,7 +111,10 @@ class EchoLayer(YowInterfaceLayer):
         receipt = OutgoingReceiptProtocolEntity(messageProtocolEntity.getId(), messageProtocolEntity.getFrom(), "read")
 
         #previewStr = base64.b64encode(messageProtocolEntity.getPreview())
-        if messageProtocolEntity.getFrom() in waiting_location_dic:
+        if messageProtocolEntity.getFrom() not in waiting_location_dic:
+            outgoingMessageProtocolEntity = TextMessageProtocolEntity('Não estávamos esperando sua localização, efetua antes um dos comandos: ondeestou, novolugar ou  checkin', 
+                    to = messageProtocolEntity.getFrom()) 
+        else:
             ltype, place = waiting_location_dic[messageProtocolEntity.getFrom()]
             if ltype == 'newplace':
                 if placesAPI.addLocation(place, messageProtocolEntity.getLatitude(), messageProtocolEntity.getLongitude()):
@@ -125,27 +132,24 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     outgoingMessageProtocolEntity = TextMessageProtocolEntity('Nenhum lugar encontrado em um raio de 5km da sua localização', 
                     to = messageProtocolEntity.getFrom()) 
+            elif ltype == 'checkin':
+                if messageProtocolEntity.getLocationName() or messageProtocolEntity.getLocationURL():
+                    outgoingMessageProtocolEntity = TextMessageProtocolEntity('Por favor envie a SUA localização', 
+                    to = messageProtocolEntity.getFrom())
+                else:
+                    code, number, time = checkInAtLocation(jid=messageProtocolEntity.getFrom(), latitude=messageProtocolEntity.getLatitude(),
+                        longitude=messageProtocolEntity.getLongitude())['result']
 
-            del waiting_location_dic[messageProtocolEntity.getFrom()]
-
-        elif messageProtocolEntity.getLocationName() or messageProtocolEntity.getLocationURL():
-            outgoingMessageProtocolEntity = TextMessageProtocolEntity('Por favor envie sua localização', 
-                to = messageProtocolEntity.getFrom())
-
-        else:
-            code, number, time = checkInAtLocation(jid=messageProtocolEntity.getFrom(), latitude=messageProtocolEntity.getLatitude(),
-                longitude=messageProtocolEntity.getLongitude())['result']
-
-            if code == "far":
-                resp = "Por favor se aproxime de um display"
-            elif code == "already":
-                resp = 'Você já realizou checkin no display %s, válido por mais %s segundos' % (number, time)
-            elif code == "other":
-                resp = 'Já existe usuário no display %s, por favor aguarde mais %s segundos' % (number, time)
-            elif code == "ok":
-                resp = "Realizou checkin válido por %s segundos no display %s" % (time, number)
-            
-            outgoingMessageProtocolEntity = TextMessageProtocolEntity(resp, to = messageProtocolEntity.getFrom())
+                    if code == "far":
+                        resp = "Por favor se aproxime de um display"
+                    elif code == "already":
+                        resp = 'Você já realizou checkin no display %s, válido por mais %s segundos' % (number, time)
+                    elif code == "other":
+                        resp = 'Já existe usuário no display %s, por favor aguarde mais %s segundos' % (number, time)
+                    elif code == "ok":
+                        resp = "Realizou checkin válido por %s segundos no display %s" % (time, number)
+                    
+                    outgoingMessageProtocolEntity = TextMessageProtocolEntity(resp, to = messageProtocolEntity.getFrom()) 
 
         
         receipt_dic[outgoingMessageProtocolEntity.getId()] = receipt
@@ -184,7 +188,7 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s nao encontrada,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s não encontrada,\n categorias disponíveis: %s' % (args[1], all_categories)
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -197,7 +201,7 @@ class EchoLayer(YowInterfaceLayer):
                 else:
                     rsp = "Erro ao se inscrever na categoria %s " % shortName 
             else:
-                rsp = 'Categoria %s nao encontrada!,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], all_categories)
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -206,7 +210,7 @@ class EchoLayer(YowInterfaceLayer):
             if liked >=0:
                 rsp = 'Imagem gostada com sucesso, total: %s gostada%s' % (liked, 's' if liked > 1 else '')
             else:
-                rsp = 'Imagem com codigo %s nao encontrada ' % args[1]
+                rsp = 'Imagem com código %s não encontrada ' % args[1]
 
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
 
@@ -218,27 +222,31 @@ class EchoLayer(YowInterfaceLayer):
                 image['encoding'], image['width'], image['height'], '%s: %s' % (image['code'], image['caption']),
                 to = messageProtocolEntity.getFrom(), preview=image['preview'].decode('base64'))          
             else:
-                return TextMessageProtocolEntity('Imagem com código %s nao encontrada ' % args[1], 
+                return TextMessageProtocolEntity('Imagem com código %s não encontrada ' % args[1], 
                     to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'display':
             if args[1] in catConvert.values():
                 status, shortName, display = changeDisplayCategory(jid=messageProtocolEntity.getFrom(), category=args[1])['result']
                 if status == 'noCat':
-                    rsp = 'Categoria %s nao encontrada!,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                    rsp = 'Categoria %s não encontrada!,\n categorias disponíveis: %s' % (args[1], all_categories)
                 elif status =='noDisplay':
                     rsp = 'Realize primeiro checkin em um display!'
                 elif status == "ok":
                     rsp = 'Categoria do display %s mudada para %s' % (display, shortName)
             else:
-                rsp = 'Categoria %s nao encontrada,\n categorias disponiveis: %s' % (args[1], ', '.join(sorted(catConvert.values())))
+                rsp = 'Categoria %s não encontrada,\n categorias disponíveis: %s' % (args[1], all_categories)
             
             return TextMessageProtocolEntity(rsp, to = messageProtocolEntity.getFrom())
+        elif args[0] == 'checkin':
+            waiting_location_dic[messageProtocolEntity.getFrom()] = ['checkin', '']
+            return TextMessageProtocolEntity('Envie sua localização para realizarmos o checkin no display',
+                    to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'sairdisplay':
             status, display = checkoutAtDisplay(jid=messageProtocolEntity.getFrom())['result']
             if status == 'noCheckin':
-                txt = 'Voce ja nao estava em nenhum display'
+                txt = 'Você já não estava em nenhum display'
             else:
                 txt = 'Checkout do display %s efetuado com sucesso' % display
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
@@ -251,7 +259,7 @@ class EchoLayer(YowInterfaceLayer):
                     location['geometry']['location']['lng'], location['name'].encode('utf-8'),
                     None, 'raw', to = messageProtocolEntity.getFrom())
             else:
-                return TextMessageProtocolEntity('lugar %s nao encontrado' % search,
+                return TextMessageProtocolEntity('lugar %s não encontrado' % search,
                     to = messageProtocolEntity.getFrom())
 
         elif args[0] == 'novolugar':
@@ -272,16 +280,17 @@ class EchoLayer(YowInterfaceLayer):
         
         else:
             txt = '''❗Comando %s nao encontrado, os possíveis comandos são:\n
+→ oi - Fale oi para o CampusBot\n
+→ Envie uma foto para enviá-la para o display\n
 → querofotos <categoria>  - Se inscreva para receber novas fotos de uma das seguintes categorias:(pessoas, carros, flores, arquitetura, animais, natureza, comida, praia, arte, objetos, eventos, texto, pordosol)\n
 → naoquerofotos <categoria> - Cancele sua Inscricao para uma categoria\n
 → gostei <numero da foto> - Goste de uma foto indicando o numero presente no display\n
-→ oi - Fale oi para o CampusBot\n
-→ Envie sua localizacao para realizar checkin em um display\n
+→ checkin - Envie sua localizacao para realizar checkin em um display\n
 → display <categoria> - Apos feito o checkin mude a categoria mostrada no display\n
 → sairdisplay - Libere o display para outra pessoa utilizar\n
 → Ondeeh <lugar> - Pesquise um lugar no campus\n
-→ novolugar <lugar> - Crie um novo lugar no campus\n
-→ ondeestou - Descubra o lugar mais próximo de voce
+→ novolugar <lugar> - Envie sua localização para criar um novo lugar no campus\n
+→ ondeestou - Descubra o lugar mais próximo de você
             ''' % args[0]
             return TextMessageProtocolEntity(txt, to = messageProtocolEntity.getFrom())
 
