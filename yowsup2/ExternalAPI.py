@@ -27,10 +27,10 @@ class PlacesApi():
         self.api_url = 'https://maps.googleapis.com/maps/api/place/%s/json'
     def searchLocation(self, searchString):
         s =searchString.replace(' ', '+')
-        r = requests.get(self.api_url % 'textsearch', 
+        r = requests.get(self.api_url % 'nearbysearch', 
             params={
                     'location': '-22.817106,-47.069783', 'radius': 5000,
-                    'query': s,
+                    'keyword': s,
                     'key': self.api_key
                     }
                     )
@@ -58,18 +58,20 @@ if __name__ == "__main__":
     ir = ImageRecognizer()
     #print ir.recognizeImage('http://playground.imagga.com/static/img/example_photo.jpg',2)    
     #print ir.tagsForImage('https://mmi203.whatsapp.net/d/D02ndanMkJDJLNxvEVbmgFR3mPQABQjd6aO8-g/AtYY_3iXKeEBeutTGOsk6YyXi7JfEdYh8f3SxqnK7qqF.jpg', 30)
-    #r = requests.get('https://maps.googleapis.com/maps/api/place/textsearch/json?query=XJXSKD+10&key=%s' % 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
+    #r = requests.get('https://maps.googleapis.com/maps/api/place/textsearch/json?query=XJXSKDJMXAMC&key=%s' % 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
+    #r = requests.get('https://maps.googleapis.com/maps/api/place/nearbysearch/json?keyword=XJXSKDJMXAMC&location=-22.817106,-47.069783&radius=5&key=%s' % 'AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
     p = PlacesApi()
-    #r = p.searchLocation('XJXSKDJMXAMC')
-    r = p.addLocation('XJXSKDJMXAMC', -33.8669710,-33.8669710 )
+    r = p.searchLocation('XJXSKDJMXAMC')
+    #r = p.addLocation('XJXSKDJMXAMC', -22.817106,-47.069783 )
     print r
 
     #r = requests.get('https://maps.googleapis.com/maps/api/place/radarsearch/json?location=-33.866971,-33.8669710&radius=50000000000&name=XJXSKDJMXAMC&key=AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
 
     #r = requests.get('https://maps.googleapis.com/maps/api/place/details/json?placeid=qgYvCi0wMDAwMDAyZThkMDMxZTdlOjAxYjQ4Yjc1YmIzOjMwYzk4NWRkYjljMWJmZGQ&key=AIzaSyDK3VO6SIMpZEfi3djccBETdf-mv9Ccfws')
-    #print r.json()
+    #print [x['name'] for x in r.json()['results']]
 
     #qgYvCi0wMDAwMDAyZThkMDMxZTdlOjAxYjQ4Yjc1YmIzOjMwYzk4NWRkYjljMWJmZGQ
 
+#{u'status': u'OK', u'scope': u'APP', u'place_id': u'qgYvCi0wMDAwMDAyZThkMDMxZTdlOjk0YzhjNmIyY2QxOjAyZTllODdiMDk5NDY5MzE', u'id': u'e2f6229a77d7081e9968228bdc4942034048f162', u'reference': u'CkQxAAAAafluG3j1_LoRf6RYd48wmib6XXHnmY5X0LZiYG36YtGyN6pB9fYYO1pi-vIRScPakHol2YpsAIVjLZQCESzWARIQ87XTISpjoNNdOvqHuz9Z2RoUP1qwhpAvKeCP8ONGFpED0FKeNBE'}
 
 
