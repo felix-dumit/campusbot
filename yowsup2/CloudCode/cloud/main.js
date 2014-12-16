@@ -150,7 +150,7 @@ Parse.Cloud.define("saveNewImage", function(request, response) {
             countQuery.first()
         );
     }).then(function(image, user, categories, lastImage) {
-        count = parseInt(lastImage.get('code')) + 1
+        var count = parseInt(lastImage.get('code'),10) + 1
         image.set('user', user);
         image.set('categories', categories);
         image.set('category', categories[0]);

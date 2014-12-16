@@ -7,10 +7,15 @@ class ImageRecognizer():
         self.api_url = "http://api.imagga.com/draft/%s" + "?api_key=" + api_key
 
     def recognizeImage(self, url, num=1):
-        request = requests.post(self.api_url % 'classify/personal_photos', params={"urls": url})
-        res = request.json()
-        print res
-        return [str(x['name']) for x in res[0]['tags'][0:num]]
+        tags = []
+        i =0
+        while not tags and i<5:
+            i+=1
+            request = requests.post(self.api_url % 'classify/personal_photos', params={"urls": url})
+            res = request.json()
+            print res
+            tags = [str(x['name']) for x in res[0]['tags'][0:num]]
+        return tags
 
     def tagsForImage(self, url, thresh=20):
         r = requests.get(self.api_url % 'tags', params={"url": url})
