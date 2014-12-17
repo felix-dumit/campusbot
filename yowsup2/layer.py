@@ -45,7 +45,7 @@ class EchoLayer(YowInterfaceLayer):
     @ProtocolEntityCallback("message")
     def onReceive(self, messageProtocolEntity):
 
-        print messageProtocolEntity.getType(), messageProtocolEntity.getFrom()
+        print messageProtocolEntity.getType(), messageProtocolEntity.getFrom(), messageProtocolEntity.getNotify()
         
         if messageProtocolEntity.getType() != 'media' or messageProtocolEntity.getMediaType() != 'location':
             if messageProtocolEntity.getFrom() in waiting_location_dic:
